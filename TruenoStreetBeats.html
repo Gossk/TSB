@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Trueno Street Beats - Yeye Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; background-color: #050505; display: flex; justify-content: center; align-items: center; font-family: 'VT323', monospace; overflow: hidden; }
+        
+        #game-container {
+            position: relative; width: 100%; max-width: 800px; aspect-ratio: 4/3;
+            background: #000; box-shadow: 0 0 30px rgba(0,0,0,1); image-rendering: pixelated;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* UI Overlays */
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.9); color: white; z-index: 20; transition: opacity 0.5s;
+        }
+        .hidden { display: none !important; opacity: 0; pointer-events: none; }
+
+        h1 { font-size: 4.5rem; color: #f9a826; text-shadow: 4px 4px 0 #00529b; margin-bottom: 10px; text-align: center; line-height: 1.1; }
+        h2 { font-size: 2.5rem; color: #4cc9f0; margin-bottom: 20px; text-align: center; }
+        p { font-size: 1.5rem; text-align: center; margin-bottom: 30px; color: #ccc; max-width: 80%; }
+        
+        .btn { background: #111; border: 4px solid #f9a826; color: #f9a826; padding: 12px 35px; font-size: 2.2rem; font-family: 'VT323', monospace; cursor: pointer; transition: 0.2s; border-radius: 8px; text-transform: uppercase; }
+        .btn:hover { background: #f9a826; color: #111; box-shadow: 0 0 15px #f9a826; }
+
+        /* Mission UI */
+        #mission-panel {
+            position: absolute; top: 15px; left: 15px; background: rgba(0, 0, 0, 0.85); border: 2px solid #f9a826;
+            padding: 10px 15px; border-radius: 8px; z-index: 10; pointer-events: none; max-width: 250px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.8);
+        }
+        #mission-panel.is-hidden { display: none !important; }
+        #mission-panel h3 { color: #f9a826; font-size: 1.2rem; margin-bottom: 5px; text-transform: uppercase; }
+        #mission-text { color: #fff; font-size: 1.1rem; line-height: 1.2; }
+        #repel-status { color: #2ecc71; font-size: 1rem; margin-top: 5px; display: none; font-weight: bold; }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            position: absolute; bottom: 20px; left: 0; width: 100%; height: 160px;
+            pointer-events: none; z-index: 15; display: none;
+        }
+        .dpad { position: absolute; left: 20px; bottom: 10px; width: 140px; height: 140px; pointer-events: auto; }
+        .dbtn { position: absolute; width: 45px; height: 45px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.5); border-radius: 8px; display: flex; justify-content: center; align-items: center; color: white; font-weight: bold; font-size: 20px; font-family: sans-serif; backdrop-filter: blur(2px); }
+        .dbtn:active { background: rgba(255,255,255,0.6); transform: scale(0.95); }
+        #dup { top: 0; left: 47.5px; } #ddown { bottom: 0; left: 47.5px; } #dleft { top: 47.5px; left: 0; } #dright { top: 47.5px; right: 0; }
+        
+        .actions { position: absolute; right: 20px; bottom: 20px; display: flex; gap: 15px; pointer-events: auto; }
+        .abtn { width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: white; font-size: 24px; font-weight: bold; font-family: sans-serif; border: 3px solid; backdrop-filter: blur(2px); }
+        #btn-map { background: rgba(46, 204, 113, 0.3); border-color: #2ecc71; } #btn-map:active { background: rgba(46, 204, 113, 0.8); transform: scale(0.95); }
+        #btn-a { background: rgba(249, 168, 38, 0.3); border-color: #f9a826; } #btn-a:active { background: rgba(249, 168, 38, 0.8); transform: scale(0.95); }
+        #btn-c { background: rgba(0, 210, 255, 0.3); border-color: #00d2ff; } #btn-c:active { background: rgba(0, 210, 255, 0.8); transform: scale(0.95); }
+
+        @media (max-width: 768px) { #mobile-controls { display: block; } #mission-panel { top: 5px; left: 5px; padding: 5px; } }
+
+
+        #sound-toggle{position:absolute;right:10px;top:10px;z-index:30;background:#111;color:#f9a826;border:2px solid #f9a826;border-radius:6px;padding:5px 10px;font:20px 'VT323',monospace;cursor:pointer}
+        #sound-settings{position:absolute;right:10px;top:45px;z-index:31;width:230px;padding:12px;background:rgba(5,5,5,.96);border:2px solid #4cc9f0;border-radius:8px;color:#fff;font:18px 'VT323',monospace}
+        #sound-settings.hidden{display:none} #sound-settings label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:8px 0}
+        #sound-settings input[type=range]{width:100px;accent-color:#f9a826} #sound-settings button{background:#222;color:#f9a826;border:1px solid #f9a826;padding:4px 8px;font:18px 'VT323',monospace}
+
+        /* Yeye Cinematic Ending */
+        #yeye-ending {
+            background: linear-gradient(135deg, #050510 0%, #1a0b2e 100%);
+            text-align: center; padding: 40px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .stars { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background-image: radial-gradient(2px 2px at 20px 30px, #eee, rgba(0,0,0,0)), radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)), radial-gradient(2px 2px at 50px 160px, #ddd, rgba(0,0,0,0)); background-size: 200px 200px; animation: starAnim 4s linear infinite; opacity: 0.5; }
+        @keyframes starAnim { from { transform: translateY(0); } to { transform: translateY(-200px); } }
+        .yeye-title { font-size: 4rem; color: #ff7979; text-shadow: 0 0 20px #ff7979; animation: pulse 2s infinite; margin-bottom: 20px;}
+        .yeye-msg { font-size: 2rem; color: #fff; line-height: 1.5; text-shadow: 2px 2px 4px #000; max-width: 600px; margin-bottom: 40px;}
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="640" height="480"></canvas>
+    
+    <div id="mission-panel" class="is-hidden">
+        <h3>Misión Actual</h3>
+        <div id="mission-text">Habla con Peligro.</div>
+        <div id="repel-status">Seguridad: 0 pasos</div>
+    </div>
+
+    <div id="mobile-controls">
+        <div class="dpad">
+            <div class="dbtn" id="dup">▲</div><div class="dbtn" id="dleft">◀</div>
+            <div class="dbtn" id="ddown">▼</div><div class="dbtn" id="dright">▶</div>
+        </div>
+        <div class="actions">
+            <div class="abtn" id="btn-c">C</div>
+            <div class="abtn" id="btn-map">M</div>
+            <div class="abtn" id="btn-a">A</div>
+        </div>
+    </div>
+
+
+    <button id="sound-toggle" type="button" aria-label="Configuración de sonido">♫ SONIDO</button>
+    <div id="sound-settings" class="hidden">
+      <strong style="color:#4cc9f0">AUDIO DEL JUEGO</strong>
+      <label>Sonidos <input id="sfx-enabled" type="checkbox" checked></label>
+      <label>Música <input id="music-enabled" type="checkbox" checked></label>
+      <label>Volumen general <input id="master-volume" type="range" min="0" max="100" value="65"></label>
+      <label>Volumen música <input id="music-volume" type="range" min="0" max="100" value="22"></label>
+      <label>Volumen efectos <input id="sfx-volume" type="range" min="0" max="100" value="75"></label>
+      <button id="sound-test" type="button">Probar sonido</button>
+      <button id="sound-close" type="button">Cerrar</button>
+      <div style="font-size:14px;color:#aaa;margin-top:6px">Pulsa O para abrir/cerrar</div>
+    </div>
+
+    <!-- Screens -->
+    <div id="startScreen" class="ui-layer">
+        <h1>TRUENO<br>STREET BEATS</h1>
+        <h2>Atrevido Edition</h2>
+        <p>Forma tu equipo de MCs, derrota a los Jefes y conquista desde La Boca hasta el Futuro.</p>
+        <p style="font-size: 1.2rem; color: #aaa;">[WASD] Moverse | [Espacio] Interactuar | [I] Misión | [E] Inventario | [M] Mapa | [C] Celular</p>
+        <button class="btn" onclick="Game.start()">Empezar la Gira</button>
+    </div>
+
+    <div id="gameOverScreen" class="ui-layer hidden">
+        <h1 style="color: #ff4757; text-shadow: 4px 4px 0px #800000;">SIN BARRAS</h1>
+        <p>Tu equipo fue derrotado.</p>
+        <button class="btn" onclick="location.reload()">Volver al Barrio</button>
+    </div>
+
+    <div id="yeye-ending" class="ui-layer hidden">
+        <div class="stars"></div>
+        <div class="stars" style="background-size: 150px 150px; animation-duration: 3s; opacity: 0.3;"></div>
+        <h1 class="yeye-title">¡FELIZ CUMPLEAÑOS YEYE! 💖</h1>
+        <p class="yeye-msg">Demostraste ser la mejor en todas las eras: pasado, presente y futuro.<br><br>Que la rompas este año con mucho flow, salud, éxito y pura magia.<br><br>¡Este juego es tu regalo especial, Atrevida!</p>
+        <button class="btn" onclick="location.reload()">Jugar de Nuevo</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+
+    // Audio procedural: no requiere archivos externos ni descargas adicionales.
+    const Sound = {
+      ctx:null, master:0.65, musicVol:0.22, sfxVol:0.75, sfxOn:true, musicOn:true,
+      musicNodes:[], lastState:'', lastBattleHp:null, lastRoulettePhase:'', lastBattleSub:'', stepTick:0,
+      init(){
+        const AC=window.AudioContext||window.webkitAudioContext;
+        if(!this.ctx && AC) this.ctx=new AC();
+        if(this.ctx && this.ctx.state==='suspended') this.ctx.resume();
+      },
+      tone(freq=440,duration=.1,wave='square',volume=.15,when=0){
+        if(!this.ctx||!this.sfxOn||this.master<=0||this.sfxVol<=0)return;
+        const t=this.ctx.currentTime+when, o=this.ctx.createOscillator(), g=this.ctx.createGain();
+        o.type=wave;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(Math.max(.0001,volume*this.master*this.sfxVol),t);
+        g.gain.exponentialRampToValueAtTime(.0001,t+duration);o.connect(g);g.connect(this.ctx.destination);o.start(t);o.stop(t+duration+.02);
+      },
+      play(kind){
+        this.init(); if(!this.sfxOn)return;
+        const seq={confirm:[[620,.06],[880,.09]],step:[[125,.035]],pickup:[[660,.08],[990,.12],[1320,.16]],
+          roulette:[[330,.05],[440,.05],[554,.05],[740,.08]],rare:[[740,.1],[988,.12],[1480,.22]],
+          battle:[[180,.12],[260,.18]],hit:[[110,.08],[75,.12]],heal:[[520,.1],[660,.12],[880,.16]],
+          win:[[523,.12],[659,.12],[784,.12],[1046,.25]],lose:[[330,.18],[247,.25],[165,.35]],shop:[[440,.07],[660,.1]],
+          dialogue:[[500,.025]],map:[[380,.08],[520,.1]],menu:[[420,.06]]};
+        (seq[kind]||seq.confirm).forEach((n,i)=>this.tone(n[0],n[1],kind==='hit'?'sawtooth':'square',kind==='step'?.07:.13,i*.075));
+      },
+      startMusic(){
+        this.init();this.stopMusic();if(!this.ctx||!this.musicOn||this.musicVol<=0)return;
+        const master=this.ctx.createGain();master.gain.value=this.master*this.musicVol*.12;master.connect(this.ctx.destination);
+        const a=this.ctx.createOscillator(),b=this.ctx.createOscillator(),filter=this.ctx.createBiquadFilter();
+        a.type='triangle';b.type='sine';a.frequency.value=55;b.frequency.value=82.4;filter.type='lowpass';filter.frequency.value=180;
+        a.connect(filter);b.connect(filter);filter.connect(master);a.start();b.start();this.musicNodes=[a,b,master];
+      },
+      stopMusic(){this.musicNodes.forEach(n=>{try{n.stop?.()}catch(e){}});this.musicNodes=[];},
+      update(){
+        if(!this.ctx)return;
+        if(this.musicOn&&this.musicNodes.length===0&&this.lastState!=='START')this.startMusic();
+        if((!this.musicOn||this.master===0||this.musicVol===0)&&this.musicNodes.length)this.stopMusic();
+        if(this.musicNodes.length)this.musicNodes[2].gain.value=this.master*this.musicVol*.12;
+      },
+      settings(){
+        const panel=document.getElementById('sound-settings');panel.classList.toggle('hidden');
+      }
+    };
+    const bindSoundUI=()=>{
+      const el=id=>document.getElementById(id);
+      el('sound-toggle').addEventListener('click',()=>{Sound.init();Sound.settings();Sound.play('menu')});
+      el('sound-close').addEventListener('click',()=>Sound.settings());
+      el('sound-test').addEventListener('click',()=>{Sound.init();Sound.play('rare')});
+      el('sfx-enabled').addEventListener('change',e=>Sound.sfxOn=e.target.checked);
+      el('music-enabled').addEventListener('change',e=>{Sound.musicOn=e.target.checked;if(!Sound.musicOn)Sound.stopMusic();else Sound.startMusic()});
+      el('master-volume').addEventListener('input',e=>{Sound.master=+e.target.value/100;Sound.update()});
+      el('music-volume').addEventListener('input',e=>{Sound.musicVol=+e.target.value/100;Sound.update()});
+      el('sfx-volume').addEventListener('input',e=>Sound.sfxVol=+e.target.value/100);
+    };
+    bindSoundUI();
+    window.addEventListener('keydown',e=>{if(e.code==='KeyO'&&!e.repeat){Sound.init();Sound.settings();Sound.play('menu')} });
+
+    // Input Handling
+    const Input = {
+        up: false, down: false, left: false, right: false, action: false, actionPressed: false, 
+        map: false, mapPressed: false, cell: false, cellPressed: false, missionPressed: false, inventoryPressed: false,
+        reset() { 
+            this.up = false; this.down = false; this.left = false; this.right = false; 
+            this.actionPressed = false; this.mapPressed = false; this.cellPressed = false; this.missionPressed = false; this.inventoryPressed = false;
+        }
+    };
+    window.addEventListener('keydown', e => {
+        if(['ArrowUp','KeyW'].includes(e.code)) Input.up = true;
+        if(['ArrowDown','KeyS'].includes(e.code)) Input.down = true;
+        if(['ArrowLeft','KeyA'].includes(e.code)) Input.left = true;
+        if(['ArrowRight','KeyD'].includes(e.code)) Input.right = true;
+        if(['Space','Enter'].includes(e.code)) { Input.action = true; Input.actionPressed = true; Sound.play('confirm'); }
+        if(['KeyM'].includes(e.code)) { Input.map = true; Input.mapPressed = true; }
+        if(['KeyC'].includes(e.code)) { Input.cell = true; Input.cellPressed = true; }
+        if(e.code==='KeyI' && !e.repeat) Input.missionPressed = true;
+        if(e.code==='KeyE' && !e.repeat) Input.inventoryPressed = true;
+    });
+    window.addEventListener('keyup', e => {
+        if(['ArrowUp','KeyW'].includes(e.code)) Input.up = false;
+        if(['ArrowDown','KeyS'].includes(e.code)) Input.down = false;
+        if(['ArrowLeft','KeyA'].includes(e.code)) Input.left = false;
+        if(['ArrowRight','KeyD'].includes(e.code)) Input.right = false;
+        if(['Space','Enter'].includes(e.code)) Input.action = false;
+        if(['KeyM'].includes(e.code)) Input.map = false;
+        if(['KeyC'].includes(e.code)) Input.cell = false;
+    });
+    const touch = (id, key) => {
+        let el = document.getElementById(id);
+        el.addEventListener('touchstart', e => { e.preventDefault(); Input[key]=true; Input[key+'Pressed']=true; });
+        el.addEventListener('touchend', e => { e.preventDefault(); Input[key]=false; });
+    };
+    touch('dup','up'); touch('ddown','down'); touch('dleft','left'); touch('dright','right'); 
+    touch('btn-a','action'); touch('btn-map','map'); touch('btn-c','cell');
+
+    const TILE = 40;
+
+    const Routes = {
+        NORMAL: [
+            "1/7: Habla con tu padre Peligro en Caminito.",
+            "2/7: Cruza los callejones y recluta a Acru.",
+            "3/7: Avanza por el Puente Avellaneda y vence a Tiago.",
+            "4/7: Entra a La Bombonera y derrota a Wos.",
+            "5/7: Viaja en Subte y llega al parque.",
+            "6/7: Conquista El Quinto Escalón derrotando a Duki.",
+            "7/7: Entra a la Arena y enfrenta a tu Futuro."
+        ],
+        REDBULL: [
+            "Red Bull 1/2: Vence a Mecha en el Parque Red Bull.",
+            "Red Bull 2/2: Destroza a Zasko en el Coliseo Mayor."
+        ],
+        FMS: [
+            "FMS Arg 1/2: Domina el Estudio grabando a Stuart.",
+            "FMS Arg 2/2: Gana la final a Larrix en el Escenario."
+        ],
+        QUINTO: [
+            "Quinto 1/2: Vence a MKS en el Parque Rivadavia.",
+            "Quinto 2/2: Quítale el trono a Dani en el Anfiteatro."
+        ]
+    };
+
+    const MCs = {
+        trueno: { name: "Trueno", hp: 60, maxHp: 60, atk: 18, def: 12, spd: 15, lvl: 1, exp: 0, color: "#00529b", stripe: "#f9a826", moves: [{name:"Freestyle", pwr:40, pp:30, max:30, t:"dmg"}, {name:"Atrevido", pwr:65, pp:15, max:15, t:"dmg"}, {name:"Dance Crip", pwr:30, pp:10, max:10, t:"heal"}] },
+        acru:   { name: "Acru", hp: 70, maxHp: 70, atk: 22, def: 15, spd: 10, lvl: 3, exp: 0, color: "#2c3e50", stripe: "#bdc3c7", moves: [{name:"Boom Bap", pwr:50, pp:20, max:20, t:"dmg"}, {name:"Tirar Barras", pwr:0, pp:5, max:5, t:"buff"}] },
+        tiago:  { name: "Tiago", hp: 65, maxHp: 65, atk: 16, def: 18, spd: 12, lvl: 5, exp: 0, color: "#8e44ad", stripe: "#fff", moves: [{name:"Melodía", pwr:45, pp:25, max:25, t:"dmg"}, {name:"Cura Rápida", pwr:40, pp:10, max:10, t:"heal"}] },
+        wos:    { name: "Wos", hp: 90, maxHp: 90, atk: 25, def: 20, spd: 14, lvl: 8, exp: 0, color: "#d35400", stripe: "#111", moves: [{name:"Canguro", pwr:60, pp:15, max:15, t:"dmg"}, {name:"Terraza", pwr:80, pp:5, max:5, t:"dmg"}] },
+        duki:   { name: "Duki", hp: 120, maxHp: 120, atk: 35, def: 25, spd: 20, lvl: 12, exp: 0, color: "#ff4757", stripe: "#fff", moves: [{name:"Modo Diablo", pwr:85, pp:10, max:10, t:"dmg"}, {name:"Goteo", pwr:50, pp:20, max:20, t:"dmg"}] },
+        
+        // Random Encounters / Extras
+        papo:   { name: "Papo", hp: 80, maxHp: 80, atk: 22, def: 18, spd: 10, lvl: 4, exp: 0, color: "#e67e22", stripe: "#000", moves: [{name:"Grito", pwr:55, pp:20, max:20, t:"dmg"}] },
+        klan:   { name: "Klan", hp: 75, maxHp: 75, atk: 20, def: 16, spd: 14, lvl: 3, exp: 0, color: "#27ae60", stripe: "#fff", moves: [{name:"Agresividad", pwr:50, pp:15, max:15, t:"dmg"}] },
+        stuart: { name: "Stuart", hp: 80, maxHp: 80, atk: 26, def: 15, spd: 18, lvl: 6, exp: 0, color: "#2980b9", stripe: "#fff", moves: [{name:"Ingenio", pwr:65, pp:10, max:10, t:"dmg"}] },
+        
+        // Nuevos Jefes Torneos
+        mecha:  { name: "Mecha", hp: 85, maxHp: 85, atk: 24, def: 18, spd: 16, lvl: 7, exp: 0, color: "#c0392b", stripe: "#fff", moves: [{name:"Punchline", pwr:65, pp:15, max:15, t:"dmg"}] },
+        zasko:  { name: "Zasko", hp: 95, maxHp: 95, atk: 28, def: 15, spd: 14, lvl: 9, exp: 0, color: "#8e44ad", stripe: "#f1c40f", moves: [{name:"Métrica", pwr:75, pp:10, max:10, t:"dmg"}] },
+        larrix: { name: "Larrix", hp: 105, maxHp: 105, atk: 25, def: 22, spd: 12, lvl: 10, exp: 0, color: "#f39c12", stripe: "#000", moves: [{name:"Teatralidad", pwr:60, pp:20, max:20, t:"dmg"}, {name:"Flow", pwr:40, pp:10, max:10, t:"heal"}] },
+        mks:    { name: "MKS", hp: 100, maxHp: 100, atk: 25, def: 20, spd: 15, lvl: 8, exp: 0, color: "#d35400", stripe: "#fff", moves: [{name:"Acote", pwr:70, pp:10, max:10, t:"dmg"}] },
+        dani:   { name: "Dani", hp: 90, maxHp: 90, atk: 32, def: 15, spd: 20, lvl: 11, exp: 0, color: "#2980b9", stripe: "#fff", moves: [{name:"Minutazo", pwr:85, pp:5, max:5, t:"dmg"}] }
+    };
+
+
+    // Plantel ampliado: más de 100 freestylers hispanohablantes. Stats adaptables al nivel del jugador.
+    const FREESTYLE_ROSTER = [
+        { name: 'Dtoke', country: 'Argentina', baseLvl: 2 },
+        { name: 'Sony', country: 'Argentina', baseLvl: 2 },
+        { name: 'Replik', country: 'Argentina', baseLvl: 3 },
+        { name: 'Cacha', country: 'Argentina', baseLvl: 3 },
+        { name: 'Sub', country: 'Argentina', baseLvl: 3 },
+        { name: 'Kodigo', country: 'Argentina', baseLvl: 4 },
+        { name: 'Jaze', country: 'Perú', baseLvl: 4 },
+        { name: 'Jota', country: 'Perú', baseLvl: 3 },
+        { name: 'Stick', country: 'Perú', baseLvl: 3 },
+        { name: 'Nekroos', country: 'Perú', baseLvl: 4 },
+        { name: 'Skill', country: 'Perú', baseLvl: 3 },
+        { name: 'Choque', country: 'Perú', baseLvl: 3 },
+        { name: 'Vijay Kesh', country: 'Perú', baseLvl: 2 },
+        { name: 'Litzen', country: 'Perú', baseLvl: 2 },
+        { name: 'KG', country: 'Perú', baseLvl: 3 },
+        { name: 'Nico B', country: 'Argentina', baseLvl: 2 },
+        { name: 'Wolf', country: 'Argentina', baseLvl: 3 },
+        { name: 'Roma', country: 'Argentina', baseLvl: 2 },
+        { name: 'Brasita', country: 'Argentina', baseLvl: 2 },
+        { name: 'Naista', country: 'Argentina', baseLvl: 3 },
+        { name: 'Zaina', country: 'Argentina', baseLvl: 3 },
+        { name: 'MP', country: 'Argentina', baseLvl: 3 },
+        { name: 'G Sony', country: 'Argentina', baseLvl: 2 },
+        { name: 'Kusa', country: 'Argentina', baseLvl: 3 },
+        { name: 'Tata', country: 'Argentina', baseLvl: 4 },
+        { name: 'Mamba', country: 'Argentina', baseLvl: 3 },
+        { name: 'Wolfang', country: 'Argentina', baseLvl: 2 },
+        { name: 'Nerivela', country: 'Argentina', baseLvl: 2 },
+        { name: 'Chuty', country: 'España', baseLvl: 6 },
+        { name: 'Gazir', country: 'España', baseLvl: 6 },
+        { name: 'Skone', country: 'España', baseLvl: 5 },
+        { name: 'Bnet', country: 'España', baseLvl: 6 },
+        { name: 'Arkano', country: 'España', baseLvl: 4 },
+        { name: 'Blon', country: 'España', baseLvl: 4 },
+        { name: 'Sweet Pain', country: 'España', baseLvl: 5 },
+        { name: 'Force', country: 'España', baseLvl: 4 },
+        { name: 'Hander', country: 'España', baseLvl: 4 },
+        { name: 'Walls', country: 'España', baseLvl: 4 },
+        { name: 'Mnak', country: 'España', baseLvl: 5 },
+        { name: 'Tirpa', country: 'España', baseLvl: 4 },
+        { name: 'Botta', country: 'España', baseLvl: 3 },
+        { name: 'Errecé', country: 'España', baseLvl: 4 },
+        { name: 'Invert', country: 'España', baseLvl: 5 },
+        { name: 'Javier Ibarra', country: 'España', baseLvl: 3 },
+        { name: 'Mister Ego', country: 'España', baseLvl: 4 },
+        { name: 'Aczino', country: 'México', baseLvl: 7 },
+        { name: 'Rapder', country: 'México', baseLvl: 5 },
+        { name: 'Lobo Estepario', country: 'México', baseLvl: 5 },
+        { name: 'RC', country: 'México', baseLvl: 5 },
+        { name: 'Jony Beltrán', country: 'México', baseLvl: 5 },
+        { name: 'Yoiker', country: 'México', baseLvl: 4 },
+        { name: 'Dominic', country: 'México', baseLvl: 4 },
+        { name: 'Azuky', country: 'México', baseLvl: 4 },
+        { name: 'Skiper', country: 'México', baseLvl: 4 },
+        { name: 'Potencia', country: 'México', baseLvl: 4 },
+        { name: 'T-Killa', country: 'México', baseLvl: 4 },
+        { name: 'Dair', country: 'México', baseLvl: 3 },
+        { name: 'Nota Roja', country: 'México', baseLvl: 3 },
+        { name: 'Teorema', country: 'Chile', baseLvl: 6 },
+        { name: 'Nitro', country: 'Chile', baseLvl: 5 },
+        { name: 'Basek', country: 'Chile', baseLvl: 4 },
+        { name: 'Pepe Grillo', country: 'Chile', baseLvl: 4 },
+        { name: 'Kaiser', country: 'Chile', baseLvl: 5 },
+        { name: 'El Menor', country: 'Chile', baseLvl: 5 },
+        { name: 'Joqerr', country: 'Chile', baseLvl: 4 },
+        { name: 'Jokker', country: 'Chile', baseLvl: 4 },
+        { name: 'Stigma', country: 'Chile', baseLvl: 4 },
+        { name: 'Ricto', country: 'Chile', baseLvl: 4 },
+        { name: 'Tom Crowley', country: 'Chile', baseLvl: 4 },
+        { name: 'Acertijo', country: 'Chile', baseLvl: 4 },
+        { name: 'Rodamiento', country: 'Chile', baseLvl: 3 },
+        { name: 'Valles-T', country: 'Colombia', baseLvl: 5 },
+        { name: 'Marithea', country: 'Colombia', baseLvl: 5 },
+        { name: 'Carpediem', country: 'Colombia', baseLvl: 4 },
+        { name: 'Elevn', country: 'Colombia', baseLvl: 4 },
+        { name: 'Airon', country: 'Colombia', baseLvl: 3 },
+        { name: 'Coloso', country: 'Colombia', baseLvl: 4 },
+        { name: 'Big Killa', country: 'Colombia', baseLvl: 4 },
+        { name: 'Letra', country: 'Venezuela', baseLvl: 5 },
+        { name: 'Lancer Lirical', country: 'Venezuela', baseLvl: 5 },
+        { name: 'Gaviria', country: 'Venezuela', baseLvl: 4 },
+        { name: 'Chang', country: 'Venezuela', baseLvl: 4 },
+        { name: 'Mcklopedia', country: 'Venezuela', baseLvl: 5 },
+        { name: 'Reverse', country: 'Cuba', baseLvl: 5 },
+        { name: 'Yartzi', country: 'Puerto Rico', baseLvl: 4 },
+        { name: 'Tito', country: 'Puerto Rico', baseLvl: 3 },
+        { name: 'Aldahir', country: 'Bolivia', baseLvl: 3 },
+        { name: 'JotaEsse', country: 'Bolivia', baseLvl: 3 },
+        { name: 'Hammer', country: 'Ecuador', baseLvl: 3 },
+        { name: 'MCK', country: 'Ecuador', baseLvl: 4 },
+        { name: 'Spektro', country: 'Uruguay', baseLvl: 3 },
+        { name: 'Franco', country: 'Uruguay', baseLvl: 3 },
+        { name: 'Alofoke', country: 'República Dominicana', baseLvl: 3 },
+        { name: 'SNK', country: 'Costa Rica', baseLvl: 4 },
+        { name: 'Ghetto', country: 'Guatemala', baseLvl: 3 },
+        { name: 'Cehzar', country: 'Panamá', baseLvl: 3 },
+        { name: 'Nasho', country: 'Paraguay', baseLvl: 3 },
+        { name: 'Klan B', country: 'Honduras', baseLvl: 2 },
+        { name: 'Drose', country: 'Argentina', baseLvl: 4 },
+        { name: 'Papo MC', country: 'Argentina', baseLvl: 4 },
+        { name: 'Tiago PZK', country: 'Argentina', baseLvl: 4 }
+    ];
+
+    // MCs originales del universo del juego para superar los 200 personajes.
+    const COUNTRY_FLAGS = { 'Argentina':'🇦🇷','España':'🇪🇸','México':'🇲🇽','Chile':'🇨🇱','Perú':'🇵🇪','Colombia':'🇨🇴','Venezuela':'🇻🇪','Cuba':'🇨🇺','Puerto Rico':'🇵🇷','Bolivia':'🇧🇴','Ecuador':'🇪🇨','Uruguay':'🇺🇾','República Dominicana':'🇩🇴','Costa Rica':'🇨🇷','Guatemala':'🇬🇹','Panamá':'🇵🇦','Paraguay':'🇵🇾','Honduras':'🇭🇳' };
+    const ORIGINAL_MC_NAMES = ['Rima Norte','Doble Filo','Kronik','Sombra','Verso X','Nébula','Ritmo Sur','Métrica 7','Aural','Punto Cero','Fénix','Raptor','Lírico','Barras Negras','Tempo','Karma','Nómada','Ártico','Rayo','Cobalto','Magma','Vértigo','Nexus','Sónico','Distrito','Kódigo Z','Frecuencia','Táctica','Relámpago','Marea'];
+    const MC_COUNTRIES = ['Argentina','España','México','Chile','Perú','Colombia','Venezuela','Uruguay','Ecuador','Bolivia','Puerto Rico','Cuba','República Dominicana','Costa Rica','Guatemala','Panamá','Paraguay','Honduras'];
+    for (let i=0; i<130; i++) FREESTYLE_ROSTER.push({ name: `${ORIGINAL_MC_NAMES[i % ORIGINAL_MC_NAMES.length]} ${Math.floor(i/ORIGINAL_MC_NAMES.length)+1}`, country: MC_COUNTRIES[i % MC_COUNTRIES.length], baseLvl: 2 + (i*7 % 12), original: true });
+
+    const SIGNATURE_MOVES = [
+      {name:'Doble Tempo',pwr:58,pp:16,max:16,t:'dmg',desc:'Ataque veloz; golpe consistente de daño medio.'},
+      {name:'Punchline',pwr:76,pp:10,max:10,t:'dmg',desc:'Remate contundente que aprovecha una barra inesperada.'},
+      {name:'Métrica Interna',pwr:64,pp:14,max:14,t:'dmg',desc:'Ataque técnico de precisión y daño estable.'},
+      {name:'Cambio de Beat',pwr:52,pp:18,max:18,t:'dmg',desc:'Cambia el ritmo y golpea con daño moderado.'},
+      {name:'Respuesta al Público',pwr:42,pp:16,max:16,t:'heal',desc:'La energía del público recupera 42 HP.'},
+      {name:'Freestyle de Resistencia',pwr:0,pp:9,max:9,t:'buff',desc:'Sube ataque y defensa durante el duelo.'},
+      {name:'Ataque Multisilábico',pwr:88,pp:7,max:7,t:'dmg',desc:'Combo de alto daño y pocos usos.'},
+      {name:'Flow Melódico',pwr:48,pp:15,max:15,t:'heal',desc:'Recupera 48 HP con un cambio melódico.'},
+      {name:'Improvisación',pwr:60,pp:20,max:20,t:'dmg',desc:'Daño moderado con muchos usos.'},
+      {name:'Remate de Plaza',pwr:94,pp:5,max:5,t:'dmg',desc:'Remate de máximo impacto; consume bastante energía.'}
+    ];
+
+    const FREESTYLE_MCS = Object.fromEntries(FREESTYLE_ROSTER.map((mc, i) => {
+        const colors = ["#8e44ad", "#2980b9", "#c0392b", "#16a085", "#d35400", "#34495e", "#7f8c8d", "#9b59b6"];
+        const lvl = mc.baseLvl;
+        const a = SIGNATURE_MOVES[(i * 3) % SIGNATURE_MOVES.length];
+        const b = SIGNATURE_MOVES[(i * 3 + 1 + (i % 3)) % SIGNATURE_MOVES.length];
+        const c = SIGNATURE_MOVES[(i * 3 + 4 + (i % 2)) % SIGNATURE_MOVES.length];
+        return ["roster_" + i, { name: mc.name, country: mc.country, flag: COUNTRY_FLAGS[mc.country] || '🌎', original: !!mc.original, hp: 48 + lvl * 9, maxHp: 48 + lvl * 9, atk: 13 + lvl * 2, def: 10 + lvl * 2, spd: 10 + lvl, lvl, exp: 0, color: colors[i % colors.length], stripe: i % 2 ? "#f9a826" : "#ecf0f1", moves: [a,b,c].map(m => ({...m, pp:m.pp, max:m.max})) }];
+    }));
+    Object.assign(MCs, FREESTYLE_MCS);
+
+    const getClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+    const MapData = [
+        { // 0: Caminito (Barrio de la boca)
+            name: "Caminito (La Boca)",
+            pal: { w:"#e74c3c", f:"#bdc3c7", d:"#7f8c8d", dec:"#f1c40f", wStyle: 'house', fStyle: 'cobble' },
+            start: {x:2, y:2},
+            grid: [
+                "00000000000000000000",
+                "00000000000000000000",
+                "01111111111111111110",
+                "01711111711111718910",
+                "01111000000111111110",
+                "01111000000111111113",
+                "01111111111111161110",
+                "01111111111111111110",
+                "00000000000000000000"
+            ],
+            events: {
+                '15,6': { type: 'npc', name: 'Peligro', text: ['Peligro: ¡Hijo! Empieza tu camino desde Caminito.', 'Peligro: Te he dado fuerzas. ¡Ve por todo!'], action: () => { Game.healParty(); Game.advanceMission(1); } },
+                '19,5': { type: 'warp', dest: 1, x: 1, y: 5 }
+            }
+        },
+        { // 1: Callejones
+            name: "Callejones Oscuros",
+            pal: { w:"#2c3e50", f:"#555", d:"#2c3e50", dec:"#1abc9c", wStyle: 'wall', fStyle: 'cobble' },
+            grid: [
+                "00000000000000000000",
+                "00000500000000000000",
+                "01111111122221111110",
+                "01117111122221141110",
+                "01111111122221111110",
+                "31111111122221111113",
+                "00000000000000000000",
+                "00000000000000000000"
+            ],
+            events: {
+                '5,1': { type: 'shop' },
+                '15,3': { type: 'boss', name: 'ACRU', mc: 'acru', reqMission: 1, nextMission: 2 },
+                '0,5': { type: 'warp', dest: 0, x: 18, y: 5 },
+                '19,5': { type: 'warp', dest: 2, x: 1, y: 3 }
+            }
+        },
+        { // 2: Puente
+            name: "Puente Avellaneda",
+            pal: { w:"#34495e", f:"#95a5a6", d:"#2980b9", dec:"#f39c12", wStyle: 'wall', fStyle: 'plain' },
+            grid: [
+                "00000000000000000000",
+                "00000000000000000000",
+                "22222222222222222222",
+                "31111171111171114113",
+                "22222222222222222222",
+                "00000000000000000000"
+            ],
+            events: {
+                '16,3': { type: 'boss', name: 'TIAGO', mc: 'tiago', reqMission: 2, nextMission: 3 },
+                '0,3': { type: 'warp', dest: 1, x: 18, y: 5 },
+                '19,3': { type: 'warp', dest: 3, x: 1, y: 8 }
+            }
+        },
+        { // 3: Bombonera
+            name: "La Bombonera",
+            pal: { w:"#0984e3", f:"#00b894", d:"#55efc4", dec:"#ffeaa7", wStyle: 'wall', fStyle: 'grass' },
+            grid: [
+                "00000000000000000000",
+                "01111111111111111110",
+                "01222222222222222210",
+                "01222222242222222210",
+                "01222222222222222210",
+                "01111111111111111110",
+                "01111000030000111110",
+                "01110011111110015110",
+                "31111111111111111890",
+                "00000000000000000000"
+            ],
+            events: {
+                '16,7': { type: 'shop' },
+                '9,3': { type: 'boss', name: 'WOS', mc: 'wos', reqMission: 3, nextMission: 4 },
+                '0,8': { type: 'warp', dest: 2, x: 18, y: 3 },
+                '9,6': { type: 'warp', dest: 4, x: 2, y: 3 }
+            }
+        },
+        { // 4: Subte
+            name: "Subte de B.A.",
+            pal: { w:"#2d3436", f:"#b2bec3", d:"#636e72", dec:"#d63031", wStyle: 'wall', fStyle: 'plain' },
+            grid: [
+                "00000000000000000000",
+                "00000000000000000000",
+                "00311111111111111110",
+                "00100000000000000010",
+                "22222222222222222212",
+                "22222222222222222212",
+                "00000000000000000010",
+                "01111111111111111110",
+                "01000000000000000000",
+                "03000000000000000000"
+            ],
+            events: {
+                '2,2': { type: 'warp', dest: 3, x: 9, y: 7 },
+                '1,9': { type: 'warp', dest: 5, x: 9, y: 3 }
+            }
+        },
+        { // 5: Quinto
+            name: "El Quinto Escalón",
+            pal: { w:"#27ae60", f:"#bdc3c7", d:"#2ecc71", dec:"#2c3e50", wStyle: 'tree', fStyle: 'plain' },
+            grid: [
+                "00000000000000000000",
+                "00000000000000000000",
+                "00000000030000000000",
+                "01111111111111111110",
+                "01222111111111222110",
+                "01222100000001222110",
+                "01111101141101111110",
+                "01111100010001111110",
+                "01511111111111111890",
+                "00000000030000000000",
+                "00000000000000000000"
+            ],
+            events: {
+                '2,8': { type: 'shop' },
+                '9,6': { type: 'boss', name: 'DUKI', mc: 'duki', reqMission: 5, nextMission: 6 },
+                '9,2': { type: 'warp', dest: 4, x: 1, y: 8 },
+                '9,9': { type: 'warp', dest: 6, x: 9, y: 1 }
+            }
+        },
+        { // 6: Arena
+            name: "Arena Futurista",
+            pal: { w:"#111", f:"#222", d:"#00d2ff", dec:"#ff007f", wStyle: 'neon', fStyle: 'grid' },
+            grid: [
+                "00000000000000000000",
+                "00000000030000000000",
+                "00000000010000000000",
+                "00011111111111110000",
+                "00017111111111710000",
+                "00011111141111110000",
+                "00017111111111710000",
+                "00011111111111110000",
+                "00000000000000000000"
+            ],
+            events: {
+                '9,5': { type: 'boss', name: 'FUTURO', mc: 'futuro', reqMission: 6, nextMission: 7 },
+                '9,1': { type: 'warp', dest: 5, x: 9, y: 8 }
+            }
+        },
+        
+        // --- NUEVOS MAPAS TORNEOS CELULAR ---
+        { // 7: Red Bull - Parque
+            name: "Parque Red Bull",
+            pal: { w:"#27ae60", f:"#e0e0e0", d:"#2ecc71", dec:"#c0392b", wStyle: 'tree', fStyle: 'plain' },
+            grid: [
+                "00000000000000000000",
+                "01111111111111111110",
+                "01222221111122222210",
+                "01111111111111111110",
+                "01222221141122222210",
+                "01111111111111111110",
+                "05189111111111111113",
+                "00000000000000000000"
+            ],
+            events: {
+                '1,6': { type: 'shop' },
+                '9,4': { type: 'boss', name: 'MECHA', mc: 'mecha', reqMission: 0, nextMission: 1 },
+                '19,6': { type: 'warp', dest: 8, x: 1, y: 6 }
+            }
+        },
+        { // 8: Red Bull - Escenario
+            name: "Coliseo Mayor RB",
+            pal: { w:"#c0392b", f:"#34495e", d:"#e74c3c", dec:"#bdc3c7", wStyle: 'neon', fStyle: 'grid' },
+            grid: [
+                "00000000000000000000",
+                "01111111111111111110",
+                "01117111141111711110",
+                "01111111111111111110",
+                "01111111111111111110",
+                "31111111111111111110",
+                "00000000000000000000"
+            ],
+            events: {
+                '9,2': { type: 'boss', name: 'ZASKO', mc: 'zasko', reqMission: 1, nextMission: 2 },
+                '0,5': { type: 'warp', dest: 7, x: 18, y: 6 }
+            }
+        },
+        { // 9: FMS - Estudio
+            name: "Estudio Grabación FMS",
+            pal: { w:"#7f8c8d", f:"#95a5a6", d:"#34495e", dec:"#f1c40f", wStyle: 'wall', fStyle: 'plain' },
+            grid: [
+                "00000000000000000000",
+                "01111111111111111110",
+                "01122111111111221110",
+                "01122111141111221110",
+                "01111111111111111110",
+                "05189111111111111110",
+                "00000000030000000000"
+            ],
+            events: {
+                '1,5': { type: 'shop' },
+                '9,3': { type: 'boss', name: 'STUART', mc: 'stuart', reqMission: 0, nextMission: 1 },
+                '9,6': { type: 'warp', dest: 10, x: 9, y: 1 }
+            }
+        },
+        { // 10: FMS - Escenario
+            name: "Escenario FMS Arg",
+            pal: { w:"#f39c12", f:"#2c3e50", d:"#e67e22", dec:"#fff", wStyle: 'wall', fStyle: 'cobble' },
+            grid: [
+                "00000000030000000000",
+                "01111111111111111110",
+                "01111111111111111110",
+                "01111111141111111110",
+                "01711111111111117110",
+                "01111111111111111110",
+                "00000000000000000000"
+            ],
+            events: {
+                '9,3': { type: 'boss', name: 'LARRIX', mc: 'larrix', reqMission: 1, nextMission: 2 },
+                '9,0': { type: 'warp', dest: 9, x: 9, y: 5 }
+            }
+        },
+        { // 11: Quinto - Plaza
+            name: "Parque Rivadavia",
+            pal: { w:"#27ae60", f:"#ecf0f1", d:"#16a085", dec:"#34495e", wStyle: 'tree', fStyle: 'grass' },
+            grid: [
+                "00000000000000000000",
+                "01111111111111111110",
+                "01122222222222221110",
+                "01111111111111111113",
+                "01122222242222221110",
+                "01111111111111111110",
+                "05189111111111111110",
+                "00000000000000000000"
+            ],
+            events: {
+                '1,6': { type: 'shop' },
+                '9,4': { type: 'boss', name: 'MKS', mc: 'mks', reqMission: 0, nextMission: 1 },
+                '19,3': { type: 'warp', dest: 12, x: 1, y: 4 }
+            }
+        },
+        { // 12: Quinto - Anfiteatro
+            name: "Anfiteatro Quinto",
+            pal: { w:"#d35400", f:"#bdc3c7", d:"#e67e22", dec:"#2c3e50", wStyle: 'wall', fStyle: 'cobble' },
+            grid: [
+                "00000000000000000000",
+                "01111111111111111110",
+                "01117111111111711110",
+                "01111111111111111110",
+                "31111111141111111110",
+                "01111111111111111110",
+                "00000000000000000000"
+            ],
+            events: {
+                '9,4': { type: 'boss', name: 'DANI', mc: 'dani', reqMission: 1, nextMission: 2 },
+                '0,4': { type: 'warp', dest: 11, x: 18, y: 3 }
+            }
+        }
+    ];
+
+    // Cada barrio/escenario tiene su propia escena y sus encuentros de MCs.
+    // Niveles adicionales: nuevas rondas para volver a recorrer los escenarios con rivales más fuertes.
+    const BONUS_LEVELS = [
+        { source: 0, name: "Caminito - Liga de Barrio", region: "Argentina", pool: ["Argentina", "Uruguay"], level: 6 },
+        { source: 1, name: "Callejones - Batalla Nocturna", region: "Argentina", pool: ["Argentina", "Chile", "Uruguay"], level: 8 },
+        { source: 2, name: "Parque - Clasificatoria", region: "Argentina", pool: ["Argentina", "Perú", "Chile"], level: 9 },
+        { source: 3, name: "Escenario - Liga Pro", region: "Argentina", pool: ["Argentina", "España", "México"], level: 11 },
+        { source: 4, name: "Puerto - Internacional", region: "Latinoamérica", pool: ["Argentina", "Chile", "Perú", "Colombia"], level: 12 },
+        { source: 5, name: "Distrito - Élite", region: "Latinoamérica", pool: ["Argentina", "España", "México", "Chile", "Perú"], level: 14 },
+        { source: 6, name: "Final Mundial - Leyendas", region: "Mundial", pool: ["Argentina", "España", "México", "Chile", "Perú", "Colombia", "Venezuela"], level: 17 },
+        { source: 7, name: "Red Bull - Segunda ronda", region: "Red Bull", pool: ["Argentina", "Chile", "Perú", "España"], level: 10 },
+        { source: 8, name: "Madrid - Final nacional", region: "España", pool: ["España", "México", "Argentina"], level: 12 },
+        { source: 9, name: "FMS Argentina - Jornada 2", region: "FMS Argentina", pool: ["Argentina", "Uruguay", "Chile"], level: 11 },
+        { source: 10, name: "FMS Internacional - Playoffs", region: "FMS Internacional", pool: ["Argentina", "España", "México", "Colombia", "Perú"], level: 14 },
+        { source: 11, name: "Quinto Escalón - La revancha", region: "Quinto Escalón", pool: ["Argentina", "Uruguay", "Perú"], level: 9 },
+        { source: 12, name: "Copa Hispana - Gran final", region: "Internacional", pool: ["España", "México", "Chile", "Colombia", "Venezuela", "Argentina"], level: 16 }
+    ];
+    const BONUS_MAP_INDEX = [];
+    BONUS_LEVELS.forEach((stage, i) => {
+        const base = MapData[stage.source];
+        const clone = { ...base, name: stage.name, grid: [...base.grid], events: { ...base.events }, start: { ...base.start }, pal: { ...base.pal } };
+        // Los mapas extra son una nueva ronda del escenario, conservando su trazado y sus accesos.
+        MapData.push(clone);
+        BONUS_MAP_INDEX.push(MapData.length - 1);
+    });
+
+    const MAP_SCENES = {
+        0: { region: "Argentina", pool: ["Argentina", "Uruguay"], level: 2, spots: [[3,2],[8,2],[12,6],[17,7]] },
+        1: { region: "Argentina", pool: ["Argentina", "Uruguay"], level: 3, spots: [[2,3],[7,4],[12,2],[17,4]] },
+        2: { region: "Argentina", pool: ["Argentina", "Chile", "Uruguay"], level: 4, spots: [[4,3],[9,3],[13,3]] },
+        3: { region: "Argentina", pool: ["Argentina", "Uruguay", "Chile"], level: 5, spots: [[3,2],[15,2],[4,5],[14,5]] },
+        4: { region: "Argentina", pool: ["Argentina", "Chile", "Perú"], level: 5, spots: [[4,3],[9,3],[14,3],[16,7]] },
+        5: { region: "Argentina", pool: ["Argentina", "Perú", "Chile"], level: 6, spots: [[3,4],[6,4],[13,4],[16,7]] },
+        6: { region: "Internacional", pool: ["Argentina", "España", "México", "Chile", "Perú", "Colombia", "Venezuela"], level: 8, spots: [[5,3],[8,3],[12,3],[5,6],[12,6]] },
+        7: { region: "Argentina / Red Bull", pool: ["Argentina", "Chile", "Perú", "Uruguay"], level: 5, spots: [[3,2],[14,2],[5,5],[15,5]] },
+        8: { region: "España / Red Bull", pool: ["España", "México", "Argentina"], level: 7, spots: [[3,1],[6,4],[13,4],[16,4]] },
+        9: { region: "FMS Argentina", pool: ["Argentina", "Uruguay", "Chile"], level: 5, spots: [[4,2],[14,2],[4,4],[14,4]] },
+        10: { region: "FMS Internacional", pool: ["Argentina", "España", "México", "Colombia", "Perú"], level: 7, spots: [[3,2],[6,5],[13,5],[16,2]] },
+        11: { region: "Quinto Escalón", pool: ["Argentina", "Uruguay", "Perú"], level: 4, spots: [[3,2],[7,2],[13,2],[16,5]] },
+        12: { region: "Duelo internacional", pool: ["España", "México", "Chile", "Colombia", "Venezuela", "Argentina"], level: 7, spots: [[3,2],[6,3],[13,3],[16,5]] }
+    };
+
+    const WORLD_MISSIONS = {};
+    MapData.forEach((map, i) => {
+        const scene = MAP_SCENES[i] || {region:map.name, level:i+1};
+        WORLD_MISSIONS[i] = [
+          `${map.name}: explora el barrio y encuentra 2 puntos de freestyle.`,
+          `${map.name}: derrota a un MC local de nivel ${scene.level || i+1}.`,
+          `${map.name}: gana una batalla y consigue una recompensa de rareza Rara o superior.`,
+          `${map.name}: completa el cypher principal y abre el siguiente escenario.`
+        ];
+    });
+    BONUS_LEVELS.forEach((stage, i) => {
+        const spots = MAP_SCENES[stage.source]?.spots || [[3,2],[8,2],[12,5],[16,5]];
+        MAP_SCENES[BONUS_MAP_INDEX[i]] = { region: stage.region, pool: stage.pool, level: stage.level, spots: spots.map(([x,y]) => [x,y]) };
+    });
+
+    function installFreestylerSpots() {
+        MapData.forEach((map, mapIdx) => {
+            const scene = MAP_SCENES[mapIdx];
+            if (!scene) return;
+            scene.spots.forEach(([x, y], i) => {
+                if (!map.grid[y] || map.grid[y][x] !== '1') return;
+                map.events[`${x},${y}`] = { type: 'freestyler', region: scene.region, pool: scene.pool, recommendedLevel: scene.level, spotIndex: i };
+            });
+        });
+    }
+    installFreestylerSpots();
+
+    function pickFreestyler(event) {
+        const playerLevel = Math.max(1, Game.party[Game.activeMc]?.lvl || Game.party[0]?.lvl || 1);
+        const allowedCountries = event.pool || ["Argentina", "España", "México", "Chile", "Perú", "Colombia", "Venezuela"];
+        const candidates = FREESTYLE_ROSTER
+            .map((mc, i) => ({ ...mc, key: "roster_" + i }))
+            .filter(mc => allowedCountries.includes(mc.country))
+            .filter(mc => mc.baseLvl <= playerLevel + 3 && mc.baseLvl >= Math.max(1, playerLevel - 5));
+        const fallback = FREESTYLE_ROSTER.map((mc, i) => ({ ...mc, key: "roster_" + i })).filter(mc => allowedCountries.includes(mc.country));
+        const pool = candidates.length ? candidates : fallback;
+        const chosen = pool[Math.floor(Math.random() * pool.length)];
+        // Escala cerca del nivel actual de Trueno, con pequeñas variaciones por zona.
+        const zoneLevel = event.recommendedLevel || playerLevel;
+        const level = Math.max(1, Math.min(playerLevel + 2, Math.max(playerLevel - 1, Math.round((playerLevel + zoneLevel) / 2))));
+        return { ...chosen, flag: COUNTRY_FLAGS[chosen.country] || '🌎', level };
+    }
+
+    const Draw = {
+        rect(x,y,w,h,c) { ctx.fillStyle=c; ctx.fillRect(x,y,w,h); },
+        text(t,x,y,c,s,a='left') { ctx.fillStyle=c; ctx.font=`${s}px 'VT323'`; ctx.textAlign=a; ctx.fillText(t,x,y); },
+        box(x,y,w,h, c1='#222', c2='#f9a826') {
+            this.rect(x,y,w,h, 'rgba(0,0,0,0.85)');
+            ctx.strokeStyle=c2; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
+        },
+        bar(x,y,w,h,pct,c) {
+            this.rect(x,y,w,h,'#444'); this.rect(x,y,w*Math.max(0,pct),h,c);
+            ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.strokeRect(x,y,w,h);
+        },
+        
+        tile(t, px, py, p, x, y) {
+            if(t === '0') { 
+                if(p.wStyle === 'house') {
+                    let cols = ['#e74c3c','#3498db','#f1c40f','#2ecc71','#9b59b6'];
+                    let c = cols[(x + y*3) % cols.length];
+                    this.rect(px, py, TILE, TILE, c);
+                    this.rect(px, py, TILE, 4, 'rgba(255,255,255,0.2)'); 
+                    this.rect(px, py+TILE-4, TILE, 4, 'rgba(0,0,0,0.2)'); 
+                    if((x+y)%2 === 0) {
+                        this.rect(px+8, py+12, 24, 24, '#2c3e50'); 
+                        if((x+y)%3 !== 0) {
+                            this.rect(px+10, py+14, 20, 20, '#f1c40f'); 
+                            this.rect(px+19, py+14, 2, 20, '#2c3e50'); 
+                            this.rect(px+10, py+23, 20, 2, '#2c3e50'); 
+                        }
+                    }
+                    ctx.fillStyle = '#2c3e50';
+                    ctx.beginPath(); ctx.moveTo(px, py+8); ctx.lineTo(px+TILE/2, py-2); ctx.lineTo(px+TILE, py+8); ctx.fill();
+                } else if(p.wStyle === 'tree') {
+                    this.rect(px, py, TILE, TILE, '#8e44ad'); 
+                    ctx.fillStyle = p.w; ctx.beginPath(); ctx.arc(px+TILE/2, py+TILE/2, TILE/2, 0, Math.PI*2); ctx.fill();
+                } else if(p.wStyle === 'neon') {
+                    this.rect(px, py, TILE, TILE, p.w); 
+                    ctx.strokeStyle = p.dec; ctx.lineWidth = 2; ctx.strokeRect(px+4, py+4, TILE-8, TILE-8);
+                } else {
+                    this.rect(px, py, TILE, TILE, p.w); 
+                    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2; ctx.strokeRect(px, py, TILE, TILE);
+                }
+            } 
+            else if(t === '1' || t === '4') { 
+                this.rect(px, py, TILE, TILE, p.f);
+                if(p.fStyle === 'cobble') {
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                    this.rect(px+2, py+2, 16, 12); this.rect(px+22, py+2, 16, 12);
+                    this.rect(px+12, py+16, 16, 10);
+                    this.rect(px+2, py+28, 16, 10); this.rect(px+22, py+28, 16, 10);
+                } else if(p.fStyle === 'grass') {
+                    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+                    for(let i=0; i<4; i++) { const ox = 4 + ((x * 13 + y * 7 + i * 11) % 28); const oy = 4 + ((x * 5 + y * 17 + i * 9) % 26); this.rect(px+ox, py+oy, 3, 7); }
+                } else if(p.fStyle === 'grid') {
+                    ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.strokeRect(px, py, TILE, TILE);
+                    ctx.strokeStyle = 'rgba(0,210,255,0.16)'; ctx.beginPath(); ctx.moveTo(px+20,py+3); ctx.lineTo(px+20,py+37); ctx.moveTo(px+3,py+20); ctx.lineTo(px+37,py+20); ctx.stroke();
+                } else {
+                    // Juntas y pequeñas marcas urbanas para dar profundidad al suelo.
+                    ctx.strokeStyle = 'rgba(0,0,0,0.10)'; ctx.lineWidth = 1;
+                    ctx.beginPath(); ctx.moveTo(px+3,py+TILE-5); ctx.lineTo(px+TILE-4,py+TILE-5); ctx.stroke();
+                }
+            } 
+            else if(t === '2') { 
+                this.rect(px, py, TILE, TILE, p.d);
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                for(let i=0; i<5; i++) { const ox = 4 + ((x * 11 + y * 3 + i * 7) % 28); const oy = 4 + ((x * 5 + y * 13 + i * 9) % 28); this.rect(px+ox, py+oy, 5, 5); }
+            } 
+            else if(t === '3') { 
+                this.rect(px, py, TILE, TILE, p.f);
+                this.rect(px+4, py+4, TILE-8, TILE-8, '#f1c40f');
+                ctx.fillStyle = '#000'; ctx.font = "24px 'VT323'"; ctx.fillText('>>', px+10, py+28);
+            } 
+            else if(t === '5') { // Shop
+                this.rect(px, py, TILE, TILE, p.f);
+                this.rect(px, py, TILE, 15, '#e74c3c');
+                this.rect(px+10, py, 10, 15, '#fff'); this.rect(px+30, py, 10, 15, '#fff'); 
+                this.rect(px+5, py+15, TILE-10, TILE-20, '#34495e');
+                ctx.fillStyle = '#fff'; ctx.font = "20px 'VT323'"; ctx.fillText('K', px+15, py+32);
+            }
+            else if(t === '6') { this.rect(px, py, TILE, TILE, p.f); }
+            else if(t === '7') { // Streetlamp
+                this.rect(px, py, TILE, TILE, p.f);
+                if(p.fStyle === 'cobble') {
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+                    this.rect(px+2, py+2, 16, 12); this.rect(px+22, py+2, 16, 12);
+                    this.rect(px+12, py+16, 16, 10);
+                    this.rect(px+2, py+28, 16, 10); this.rect(px+22, py+28, 16, 10);
+                }
+                this.rect(px+14, py+TILE-8, 12, 8, '#222');
+                this.rect(px+18, py+4, 4, TILE-12, '#333');
+                this.rect(px+12, py, 16, 6, '#111');
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(px+20, py+8, 4, 0, Math.PI*2); ctx.fill();
+                let grad = ctx.createRadialGradient(px+20, py+8, 4, px+20, py+8, TILE*1.5);
+                grad.addColorStop(0, 'rgba(255, 234, 167, 0.7)'); grad.addColorStop(1, 'rgba(255, 234, 167, 0)');
+                ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(px+20, py+8, TILE*1.5, 0, Math.PI*2); ctx.fill();
+            }
+            else if(t === '8') { // Hotel
+                this.rect(px, py, TILE, TILE, p.f);
+                this.rect(px, py, TILE, 10, '#3498db');
+                this.rect(px+10, py+12, 20, 6, '#e74c3c');
+                this.rect(px+17, py+5, 6, 20, '#e74c3c'); 
+            }
+            else if(t === '9') { // Cypher
+                this.rect(px, py, TILE, TILE, p.f);
+                this.rect(px+4, py+4, TILE-8, TILE-8, '#333');
+                this.rect(px+8, py+8, TILE-16, TILE-16, '#00d2ff');
+                ctx.fillStyle = '#fff'; ctx.font = "14px 'VT323'"; ctx.fillText('PC', px+12, py+22);
+            }
+        },
+
+        microphone(x, y) {
+            // Icono pequeño apoyado en el suelo: deja visible la textura de la casilla.
+            ctx.save();
+            ctx.translate(x + 20, y + 21);
+            ctx.fillStyle = "rgba(0,0,0,0.38)";
+            ctx.beginPath(); ctx.ellipse(0, 10, 10, 3, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#f9a826"; ctx.lineWidth = 3; ctx.lineCap = "round";
+            ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(0, 5); ctx.stroke();
+            ctx.fillStyle = "#f9a826"; ctx.beginPath();
+            if (ctx.roundRect) ctx.roundRect(-4, -12, 8, 13, 4); else ctx.rect(-4, -12, 8, 13);
+            ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.moveTo(-7, -6); ctx.lineTo(-7, -1); ctx.quadraticCurveTo(-7, 8, 0, 8); ctx.quadraticCurveTo(7, 8, 7, -1); ctx.lineTo(7, -6); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, 8); ctx.lineTo(0, 12); ctx.moveTo(-4, 12); ctx.lineTo(4, 12); ctx.stroke();
+            ctx.restore();
+        },
+
+        pet(x, y, color) {
+            ctx.save(); ctx.fillStyle = color || '#9b59b6';
+            ctx.beginPath(); ctx.arc(x+12, y+10, 8, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+8, y+7, 3, 3); ctx.fillRect(x+15, y+7, 3, 3);
+            ctx.fillStyle = '#111'; ctx.fillRect(x+9, y+8, 1, 2); ctx.fillRect(x+16, y+8, 1, 2);
+            ctx.restore();
+        },
+
+        character(x, y, dir, frame, mainC, stripeC, isBoss=false) {
+            ctx.save(); ctx.translate(x, y);
+            if(isBoss) { ctx.scale(1.2, 1.2); ctx.translate(-4, -6); }
+            ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(20, 36, 12, 5, 0, 0, Math.PI*2); ctx.fill();
+            
+            let off = (frame % 2 === 0) ? 0 : 4;
+            ctx.fillStyle = '#222'; 
+            if (dir === 'left' || dir === 'right') { 
+                ctx.fillRect(16-off/2, 28, 8, 8); 
+                ctx.fillStyle = '#fff'; ctx.fillRect(14-off/2, 35, 12, 4); 
+            } else { 
+                ctx.fillRect(12, 28-off, 6, 8+off); ctx.fillRect(22, 28+off, 6, 8-off); 
+                ctx.fillStyle = '#fff'; ctx.fillRect(11, 35-off, 8, 4); ctx.fillRect(21, 35+off, 8, 4); 
+            }
+            
+            ctx.fillStyle = mainC; ctx.fillRect(10, 14, 20, 16);
+            ctx.fillStyle = stripeC; ctx.fillRect(10, 20, 20, 4);
+            ctx.fillStyle = mainC;
+            if(dir === 'down' || dir === 'up') { ctx.fillRect(6, 14, 4, 10); ctx.fillRect(30, 14, 4, 10); }
+
+            ctx.fillStyle = '#f1c27d'; ctx.fillRect(12, 2, 16, 14);
+            ctx.fillStyle = '#111'; ctx.fillRect(10, -2, 20, 8); 
+            if (dir === 'left') { ctx.fillRect(4, 2, 8, 2); } 
+            else if (dir === 'right') { ctx.fillRect(28, 2, 8, 2); } 
+            else if (dir === 'down') { ctx.fillRect(10, 4, 20, 2); } 
+            
+            if (dir === 'down') { 
+                ctx.fillStyle = '#111'; ctx.fillRect(13, 6, 4, 4); ctx.fillRect(23, 6, 4, 4);
+                ctx.fillStyle = '#ffd700'; ctx.fillRect(18, 16, 4, 4); 
+            }
+            else if (dir === 'left') { ctx.fillStyle = '#111'; ctx.fillRect(11, 6, 4, 4); } 
+            else if (dir === 'right') { ctx.fillStyle = '#111'; ctx.fillRect(25, 6, 4, 4); }
+            ctx.restore();
+        },
+
+        battleSprite(x, y, cMain, cStripe, isBack=false) {
+            ctx.save(); ctx.translate(x, y);
+            if (isBack) {
+                ctx.fillStyle=cMain; ctx.fillRect(-40, -20, 80, 70); 
+                ctx.fillStyle=cStripe; ctx.fillRect(-40, 0, 80, 15); 
+                ctx.fillStyle='#f1c27d'; ctx.fillRect(-20, -60, 40, 40); 
+                ctx.fillStyle='#111'; ctx.fillRect(-25, -65, 50, 20); ctx.fillRect(-10, -75, 20, 10); 
+                ctx.fillStyle=cMain; ctx.fillRect(30, -10, 30, 20); 
+                ctx.fillStyle='#f1c27d'; ctx.fillRect(50, -25, 20, 20); 
+                ctx.fillStyle='#888'; ctx.fillRect(55, -45, 10, 30); 
+                ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(60, -50, 12, 0, Math.PI*2); ctx.fill(); 
+            } else {
+                ctx.fillStyle=cMain; ctx.fillRect(-30, -20, 60, 80);
+                ctx.fillStyle=cStripe; ctx.fillRect(-30, 10, 60, 10);
+                ctx.fillStyle='#f1c27d'; ctx.fillRect(-20, -70, 40, 50); 
+                ctx.fillStyle='#111'; ctx.fillRect(-25, -75, 50, 15); ctx.fillRect(-20, -55, 40, 10); 
+                ctx.fillStyle=cMain; ctx.fillRect(-50, 0, 30, 20); 
+                ctx.fillStyle='#f1c27d'; ctx.fillRect(-60, -10, 20, 20); 
+                ctx.fillStyle='#ffd700'; ctx.fillRect(-10, -10, 20, 15); 
+            }
+            ctx.restore();
+        }
+    };
+
+    const Game = {
+        state: 'START', 
+        mapIdx: 0, currentGrid: [], mH: 0, mW: 0, cam: {x:0, y:0},
+        missionIdx: 0, activeRoute: 'NORMAL', repelSteps: 0, flashT: 0, animT: 0, missionVisible: false,
+        playerSkin: 0, pet: null, reward: null, rouletteTicks: 0, rouletteResult: null, inventoryIdx: 0,
+        
+        party: [], pc: [], activeMc: 0, inventory: { agua: 3, energy: 3, flow: 100, items: [] },
+        
+        shopItems: [
+            { id: 'agua', name: 'Agua (Cura 50 HP)', p: 50 },
+            { id: 'energy', name: 'Energía (Cura 20 PP)', p: 80 },
+            { id: 'repel', name: 'Seguridad (50 pasos)', p: 100 },
+            { id: 'tm_flow', name: 'TM: Flow Real (Atk)', p: 200, move: {name:"Flow Real", pwr:60, pp:15, max:15, t:"dmg"} },
+            { id: 'tm_heal', name: 'TM: Buena Vibra', p: 250, move: {name:"Buena Vibra", pwr:50, pp:10, max:10, t:"heal"} }
+        ],
+        shopIdx: 0, tmToLearn: null, menuIdx: 0, atkIdx: 0,
+
+        player: { gx:0, gy:0, x:0, y:0, tx:0, ty:0, dir:'down', speed: 8, moving:false, frame:0 },
+
+        start() {
+            Sound.init(); Sound.play('win'); Sound.startMusic();
+            document.getElementById('startScreen').classList.add('hidden');
+            this.party = [ getClone(MCs.trueno) ];
+            this.missionIdx = 0; this.activeRoute = 'NORMAL'; this.updateMissionUI();
+            this.loadMap(0, MapData[0].start.x, MapData[0].start.y);
+            this.state = 'OVERWORLD';
+            this.syncOverlayUI();
+        },
+
+        syncOverlayUI() {
+            const panel = document.getElementById('mission-panel');
+            const mobile = document.getElementById('mobile-controls');
+            const showWorldUI = ['OVERWORLD', 'DIALOGUE', 'MAP', 'SHOP'].includes(this.state);
+            panel.classList.toggle('is-hidden', !showWorldUI || !this.missionVisible);
+            // En batalla y menús de combate no se superponen controles de exploración.
+            mobile.style.display = ['OVERWORLD', 'DIALOGUE', 'MAP', 'SHOP'].includes(this.state) ? '' : 'none';
+        },
+
+        updateMissionUI() {
+            let r = Routes[this.activeRoute] || WORLD_MISSIONS[this.mapIdx] || Routes.NORMAL;
+            document.getElementById('mission-text').innerText = r[this.missionIdx] || "¡Gira Completada!";
+        },
+
+        advanceMission(idx) {
+            if(this.missionIdx < idx) { this.missionIdx = idx; this.updateMissionUI(); }
+        },
+
+        healParty() {
+            this.party.forEach(m => { m.hp = m.maxHp; m.moves.forEach(mv => mv.pp = mv.max); });
+        },
+
+        loadMap(idx, startX, startY) {
+            this.mapIdx = idx; this.activeRoute = 'WORLD_' + idx; this.missionIdx = 0; this.updateMissionUI(); this.currentGrid = [...MapData[idx].grid];
+            this.mH = this.currentGrid.length; this.mW = this.currentGrid[0].length;
+            this.player.gx = startX; this.player.gy = startY;
+            this.player.x = this.player.tx = startX * TILE;
+            this.player.y = this.player.ty = startY * TILE;
+            this.player.moving = false;
+        },
+
+        update() {
+            if (Input.missionPressed) { this.missionVisible = !this.missionVisible; Input.reset(); this.syncOverlayUI(); return; }
+            if (Input.inventoryPressed && this.state === 'OVERWORLD') { InventoryMenu.open(); return; }
+            if(Input.cellPressed && this.state === 'OVERWORLD') { Input.reset(); Cellphone.open(); return; }
+
+            if (this.player.moving) {
+                this.player.frame++;
+                let p = this.player;
+                if(p.x < p.tx) p.x = Math.min(p.x + p.speed, p.tx);
+                else if(p.x > p.tx) p.x = Math.max(p.x - p.speed, p.tx);
+                if(p.y < p.ty) p.y = Math.min(p.y + p.speed, p.ty);
+                else if(p.y > p.ty) p.y = Math.max(p.y - p.speed, p.ty);
+
+                if(p.x === p.tx && p.y === p.ty) {
+                    p.moving = false; p.gx = p.tx/TILE; p.gy = p.ty/TILE;
+                    if(this.repelSteps > 0) {
+                        this.repelSteps--;
+                        document.getElementById('repel-status').innerText = `Seguridad: ${this.repelSteps}`;
+                        if(this.repelSteps <= 0) document.getElementById('repel-status').style.display = 'none';
+                    }
+                    this.checkTile();
+                }
+            } else {
+                let dx=0, dy=0;
+                if(Input.up) { dy=-1; this.player.dir='up'; } else if(Input.down) { dy=1; this.player.dir='down'; }
+                else if(Input.left) { dx=-1; this.player.dir='left'; } else if(Input.right) { dx=1; this.player.dir='right'; }
+
+                if((dx!==0 || dy!==0) && !Input.action) {
+                    let nx = this.player.gx + dx, ny = this.player.gy + dy;
+                    if (nx>=0 && nx<this.mW && ny>=0 && ny<this.mH) {
+                        let t = this.currentGrid[ny][nx];
+                        if (['1','2','3','7'].includes(t)) {
+                            this.player.tx = nx * TILE; this.player.ty = ny * TILE; this.player.moving = true;
+                        }
+                    }
+                }
+                if(Input.actionPressed) {
+                    Input.reset();
+                    let fx=this.player.gx, fy=this.player.gy;
+                    if(this.player.dir==='up') fy--; if(this.player.dir==='down') fy++;
+                    if(this.player.dir==='left') fx--; if(this.player.dir==='right') fx++;
+                    
+                    let evKey = `${fx},${fy}`;
+                    let ev = MapData[this.mapIdx].events[evKey];
+                    if(!ev) {
+                        let t = (this.currentGrid[fy] && this.currentGrid[fy][fx]) ? this.currentGrid[fy][fx] : '0';
+                        if (t==='5') ev = {type: 'shop'};
+                        if (t==='6') ev = MapData[this.mapIdx].events['15,6']; 
+                        if (t==='8') ev = {type: 'hotel'};
+                        if (t==='9') ev = {type: 'cypher'};
+                    }
+
+                    if(ev) {
+                        if(ev.type === 'npc') Dialogue.start(ev.text, ev.action);
+                        else if(ev.type === 'freestyler') {
+                            const candidate = pickFreestyler(ev);
+                            Dialogue.start([`${candidate.flag || '🌎'} ${candidate.name}: Ey, Trueno. Este lugar tiene historia.`, `Trueno: Vine a dejar unas barras y ganarme el respeto.`, `${candidate.flag || '🌎'} ${candidate.name}: Entonces que hable el freestyle. ¡Vamos al cypher!`], () => Battle.start({ type: 'random_mc', mc: candidate.key, lvl: candidate.level, location: ev.region }));
+                        }
+                        else if(ev.type === 'shop') { this.state = 'SHOP'; this.shopIdx = 0; }
+                        else if(ev.type === 'hotel') { this.state = 'HOTEL'; this.animT = 0; }
+                        else if(ev.type === 'cypher') { CypherMenu.open(); }
+                        else if(ev.type === 'boss') {
+                            if(this.missionIdx < ev.reqMission) { Dialogue.start(["Necesitas avanzar más en la historia o torneo."]); return; }
+                            Dialogue.start([`${ev.name}: Así que tú eres Trueno...`, `Trueno: No vine a mirar. Vine a competir.`, `${ev.name}: Demuéstralo en la tarima.`], () => Battle.start(ev));
+                        }
+                    }
+                }
+            }
+        },
+
+        checkTile() {
+            const tileKey = `${this.player.gx},${this.player.gy}`;
+            const tileEvent = MapData[this.mapIdx].events[tileKey];
+            if (tileEvent && tileEvent.type === 'freestyler') { delete MapData[this.mapIdx].events[tileKey]; Roulette.open(tileEvent); return; }
+            let t = this.currentGrid[this.player.gy][this.player.gx];
+            if (t === '2' && this.repelSteps <= 0 && Math.random() < 0.12) {
+                Input.reset();
+                let rnd = Math.random();
+                if (rnd < 0.32) {
+                    Battle.start({type:'hater', name:'HATER', lvl: Math.max(1, this.party[0].lvl)});
+                } else {
+                    const scene = MAP_SCENES[this.mapIdx] || MAP_SCENES[0];
+                    const picked = pickFreestyler({ pool: scene.pool, recommendedLevel: scene.level, region: scene.region });
+                    Dialogue.start([`${picked.flag || '🌎'} ${picked.name}: ¿Tú eres Trueno? He escuchado tus barras.`, `Trueno: Entonces escucha esta nueva ronda.`, `${picked.flag || '🌎'} ${picked.name}: ¡Que gane el mejor!`], () => Battle.start({type:'random_mc', mc: picked.key, lvl: picked.level, location: scene.region}));
+                }
+            } else if (t === '3') {
+                let pK = `${this.player.gx},${this.player.gy}`;
+                let w = MapData[this.mapIdx].events[pK];
+                if (w && w.type === 'warp') {
+                    Input.reset();
+                    this.loadMap(w.dest, w.x, w.y);
+                }
+            }
+        },
+
+        drawMap() {
+            let p = MapData[this.mapIdx].pal;
+            this.cam.x = Math.max(0, Math.min(this.player.x - canvas.width/2 + TILE/2, this.mW*TILE - canvas.width));
+            this.cam.y = Math.max(0, Math.min(this.player.y - canvas.height/2 + TILE/2, this.mH*TILE - canvas.height));
+
+            ctx.save(); ctx.translate(-this.cam.x, -this.cam.y);
+            
+            for(let y=0; y<this.mH; y++) {
+                for(let x=0; x<this.mW; x++) {
+                    let t = this.currentGrid[y][x];
+                    Draw.tile(t, x*TILE, y*TILE, p, x, y);
+                    if (t === '6') Draw.character(x*TILE, y*TILE, 'down', 0, '#444', '#fff'); 
+                }
+            }
+            
+            let evs = MapData[this.mapIdx].events;
+            for(let k in evs) {
+                let ev = evs[k];
+                if (ev.type === 'freestyler') {
+                    let [mx, my] = k.split(',');
+                    Draw.microphone(Number(mx) * TILE, Number(my) * TILE);
+                }
+                if (ev.type === 'boss') {
+                    let [bx, by] = k.split(',');
+                    let b = MCs[ev.mc];
+                    if(!b && ev.mc==='futuro') b = {color:'#00d2ff', stripe:'#000'};
+                    Draw.character(bx*TILE, by*TILE, 'down', 0, b.color, b.stripe, true);
+                }
+            }
+
+            let lead = this.party[this.activeMc];
+            if (this.pet) Draw.pet(this.player.x - (this.player.dir==='right'?22:this.player.dir==='left'?-8:0), this.player.y + 13, this.pet.color);
+            const skin = SKINS[this.playerSkin] || null;
+            Draw.character(this.player.x, this.player.y, this.player.dir, Math.floor(this.player.frame/8), skin ? skin.main : lead.color, skin ? skin.stripe : lead.stripe);
+            ctx.restore();
+
+            // HUD compacto de exploración. Se oculta automáticamente durante el combate.
+            Draw.text("[C] CELULAR  [I] MISIÓN  [E] INVENTARIO", 320, 28, '#00d2ff', 20, 'center');
+            Draw.text(MapData[this.mapIdx].name, 320, 465, '#fff', 18, 'center');
+        },
+
+        drawShop() {
+            Draw.box(50, 50, 540, 380);
+            Draw.text("Kiosco del Barrio", 320, 90, '#f9a826', 36, 'center');
+            Draw.text(`Dinero: $${this.inventory.flow}`, 320, 130, '#fff', 24, 'center');
+            
+            const first = Math.max(0, Math.min(this.shopIdx - 2, this.shopItems.length - 6));
+            this.shopItems.slice(first, first + 6).forEach((it, j) => {
+                const i = first + j;
+                const c = this.inventory.flow >= it.p ? '#fff' : '#777';
+                Draw.text(it.name.slice(0, 42), 100, 170 + j*30, c, 17);
+                Draw.text(`$${it.p}`, 520, 170 + j*30, c, 18);
+                if (this.shopIdx === i) Draw.text("▶", 75, 170 + j*30, '#f9a826', 20);
+            });
+            const selected = this.shopItems[this.shopIdx];
+            Draw.text(selected?.move?.desc || 'Artículo para tu aventura.', 320, 370, '#f1c40f', 16, 'center');
+            Draw.text(`[${this.shopIdx+1}/${this.shopItems.length}] [ESPACIO] Comprar | [M] Salir`, 320, 410, '#aaa', 17, 'center');
+        },
+
+        loop() {
+            requestAnimationFrame(() => Game.loop());
+            Sound.update();
+            if(Game.state==='OVERWORLD' && Game.player && Game.player.moving){ Sound.stepTick++; if(Sound.stepTick%22===0) Sound.play('step'); } else Sound.stepTick=0;
+            if (Game.state !== Sound.lastState) {
+              const st=Game.state;
+              if(st==='ROULETTE') Sound.play('roulette'); else if(st==='BATTLE_TRANS'||st==='BATTLE') Sound.play('battle');
+              else if(st==='SHOP') Sound.play('shop'); else if(st==='MAP') Sound.play('map'); else if(st==='INVENTORY') Sound.play('menu');
+              Sound.lastState=st; Sound.lastBattleHp=null; Sound.lastRoulettePhase=''; Sound.lastBattleSub='';
+            }
+            if(Game.state==='ROULETTE' && Roulette.phase!==Sound.lastRoulettePhase){ if(Roulette.phase==='RESULT') Sound.play(Roulette.result && Roulette.result.rarity>=3?'rare':'pickup'); Sound.lastRoulettePhase=Roulette.phase; }
+            if(Game.state==='BATTLE' && typeof Battle!=='undefined' && Battle.enemy){
+              const hp=Battle.enemy.hp; if(Sound.lastBattleHp!==null && hp<Sound.lastBattleHp) Sound.play('hit'); Sound.lastBattleHp=hp;
+              if(Battle.sub!==Sound.lastBattleSub){ if(Battle.sub==='TEXT') Sound.play('dialogue'); if(Battle.sub==='MENU'||Battle.sub==='ATTACK') Sound.play('menu'); Sound.lastBattleSub=Battle.sub; }
+            }
+            this.syncOverlayUI();
+            if (this.state === 'START' || this.state === 'YEYE' || this.state === 'GAMEOVER') return;
+            
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+
+            if(Input.mapPressed && ['OVERWORLD','MAP','SHOP'].includes(this.state)) {
+                Input.reset();
+                this.state = (this.state === 'MAP' || this.state === 'SHOP') ? 'OVERWORLD' : 'MAP';
+            }
+
+            if (['OVERWORLD', 'DIALOGUE', 'MAP', 'SHOP'].includes(this.state)) {
+                if (this.state === 'OVERWORLD') this.update();
+                this.drawMap();
+                
+                if (this.state === 'DIALOGUE') Dialogue.draw();
+                if (this.state === 'MAP') {
+                    Draw.box(100, 50, 440, 380);
+                    Draw.text("- MAPA DE TORNEOS -", 320, 90, '#f9a826', 36, 'center');
+                    let displayMaps = MapData.map(m => m.name);
+                    Draw.text(`Estás en: ${displayMaps[this.mapIdx]}`, 320, 160, '#2ecc71', 28, 'center');
+                    Draw.text("Usa tu CELULAR [C] para", 320, 220, '#fff', 24, 'center');
+                    Draw.text("Busca micrófonos dorados en el suelo:", 320, 220, '#fff', 22, 'center');
+                    Draw.text("marcan MCs disponibles para retarte.", 320, 250, '#fff', 22, 'center');
+                    Draw.text("[M] Volver", 320, 350, '#aaa', 20, 'center');
+                }
+                if (this.state === 'SHOP') {
+                    if(Input.down && this.shopIdx < this.shopItems.length-1) { this.shopIdx++; Input.reset(); }
+                    if(Input.up && this.shopIdx > 0) { this.shopIdx--; Input.reset(); }
+                    if(Input.actionPressed) {
+                        Input.reset();
+                        let it = this.shopItems[this.shopIdx];
+                        if (this.inventory.flow >= it.p) {
+                            if(it.id === 'agua') { this.inventory.flow -= it.p; this.inventory.agua++; }
+                            else if(it.id === 'energy') { this.inventory.flow -= it.p; this.inventory.energy++; }
+                            else if(it.id === 'repel') {
+                                this.inventory.flow -= it.p;
+                                this.repelSteps += 50;
+                                document.getElementById('repel-status').style.display = 'block';
+                                document.getElementById('repel-status').innerText = `Seguridad: ${this.repelSteps}`;
+                            } else if(it.id.startsWith('tm_')) {
+                                this.tmToLearn = it; TeamMenu.open('LEARN');
+                            }
+                        }
+                    }
+                    this.drawShop();
+                }
+            } 
+            else if (this.state === 'ROULETTE') { Roulette.update(); this.drawMap(); Roulette.draw(); }
+            else if (this.state === 'INVENTORY') { InventoryMenu.update(); this.drawMap(); InventoryMenu.draw(); }
+            else if (this.state === 'BATTLE_TRANS') {
+                this.flashT++;
+                ctx.fillStyle = (Math.floor(this.flashT/4)%2===0) ? '#fff' : '#000'; ctx.fillRect(0,0,640,480);
+                if (this.flashT > 40) { this.state = 'BATTLE'; this.flashT = 0; }
+            }
+            else if (this.state === 'HOTEL') {
+                this.animT++;
+                let alpha = this.animT < 50 ? this.animT/50 : (100-this.animT)/50;
+                ctx.fillStyle = `rgba(0,0,0,${Math.min(1, Math.max(0, alpha))})`;
+                ctx.fillRect(0,0,canvas.width,canvas.height);
+                if(this.animT === 50) this.healParty();
+                if(this.animT > 100) this.state = 'OVERWORLD';
+                Draw.text("Descansando en el Hotel...", 320, 240, '#fff', 30, 'center');
+            }
+            else if (this.state === 'BATTLE') { Battle.update(); Battle.draw(); }
+            else if (this.state === 'TEAM') { TeamMenu.update(); TeamMenu.draw(); }
+            else if (this.state === 'CYPHER') { CypherMenu.update(); CypherMenu.draw(); }
+            else if (this.state === 'CELLPHONE') { Cellphone.update(); Cellphone.draw(); }
+        }
+    };
+
+    // Catálogo ampliado: 60 técnicas comprables, con descripción y efecto visible en combate.
+    const SHOP_MOVE_CATALOG = Array.from({length:60}, (_,i) => {
+      const base = SIGNATURE_MOVES[i % SIGNATURE_MOVES.length];
+      const move = {...base, name:`${base.name} ${Math.floor(i/10)+1}`, pwr:Math.max(25,base.pwr + (i%5)*3), desc:base.desc};
+      return {id:`tm_extra_${i}`, name:`${move.name} — ${move.desc}`, p:180 + (i%6)*45, move};
+    });
+    Game.shopItems.push(...SHOP_MOVE_CATALOG);
+
+    const RARITIES = [
+        { name: 'COMÚN', color: '#bdc3c7', weight: 48 },
+        { name: 'POCO COMÚN', color: '#2ecc71', weight: 27 },
+        { name: 'RARO', color: '#3498db', weight: 15 },
+        { name: 'ÉPICO', color: '#9b59b6', weight: 8 },
+        { name: 'LEGENDARIO', color: '#f1c40f', weight: 2 }
+    ];
+    const SKINS = [
+        { name: 'Atrevido clásico', main: '#00529b', stripe: '#f9a826' },
+        { name: 'Neón', main: '#00d2ff', stripe: '#f72585' },
+        { name: 'Fuego', main: '#e74c3c', stripe: '#f39c12' },
+        { name: 'Noche', main: '#202033', stripe: '#9b59b6' },
+        { name: 'Dorado', main: '#f1c40f', stripe: '#fff3b0' }
+    ];
+    const REWARD_TABLE = [
+        { type:'item', name:'Agua x2', rarity:0, apply(){ Game.inventory.agua += 2; } },
+        { type:'item', name:'Energía x2', rarity:0, apply(){ Game.inventory.energy += 2; } },
+        { type:'item', name:'Pack de barras (+150 $)', rarity:1, apply(){ Game.inventory.flow += 150; } },
+        { type:'move', name:'Movimiento: Punchline', rarity:2, move:{name:'Punchline',pwr:82,pp:8,max:8,t:'dmg'} },
+        { type:'move', name:'Movimiento: Doble Tempo', rarity:2, move:{name:'Doble Tempo',pwr:68,pp:12,max:12,t:'dmg'} },
+        { type:'skin', name:'Skin: Neón', rarity:2, skin:1 },
+        { type:'skin', name:'Skin: Fuego', rarity:3, skin:2 },
+        { type:'pet', name:'Mascota: Fantasmita', rarity:3, pet:{name:'Fantasmita',color:'#9b59b6'} },
+        { type:'pet', name:'Mascota: Mini dragón', rarity:4, pet:{name:'Mini dragón',color:'#e74c3c'} },
+        { type:'skin', name:'Skin: Dorado', rarity:4, skin:4 },
+        { type:'mc', name:'Nuevo MC: Replik', rarity:3, mc:'roster_2' },
+        { type:'mc', name:'Nuevo MC: Jaze', rarity:3, mc:'roster_6' },
+        { type:'mc', name:'Nuevo MC: Chuty', rarity:4, mc:'roster_28' },
+        { type:'mc', name:'Nuevo MC: Gazir', rarity:4, mc:'roster_29' }
+    ];
+    // Premios adicionales: 260 variantes únicas combinando objetos, técnicas, cosméticos y compañeros.
+    const EXTRA_REWARDS = Array.from({length:260}, (_,i) => {
+      const rarity = i%100 < 48 ? 0 : i%100 < 75 ? 1 : i%100 < 90 ? 2 : i%100 < 98 ? 3 : 4;
+      const kind = ['item','move','skin','pet','mc'][i%5];
+      if(kind==='move') { const m=SIGNATURE_MOVES[i%SIGNATURE_MOVES.length]; return {type:'move',name:`${m.name} edición ${i+1}`,rarity,move:{...m,name:`${m.name} ${i+1}`}}; }
+      if(kind==='skin') return {type:'skin',name:`Skin de escenario ${i+1}`,rarity,skin:i%SKINS.length};
+      if(kind==='pet') return {type:'pet',name:`Mascota cypher ${i+1}`,rarity,pet:{name:`Mascota cypher ${i+1}`,color:['#9b59b6','#e74c3c','#2ecc71','#3498db','#f1c40f'][i%5]}};
+      if(kind==='mc') { const rosterIndex=i%FREESTYLE_ROSTER.length; return {type:'mc',name:`MC: ${FREESTYLE_ROSTER[rosterIndex].name} ${COUNTRY_FLAGS[FREESTYLE_ROSTER[rosterIndex].country]||'🌎'}`,rarity,mc:`roster_${rosterIndex}`}; }
+      return {type:'item',name:['Pack de energía','Botiquín de cypher','Monedas de plaza','Recarga de flow','Amuleto de defensa'][i%5]+` #${i+1}`,rarity,apply(){ Game.inventory.flow += 40 + (i%9)*20; Game.inventory.items.push({name:`Premio #${i+1}`,detail:'Consumible de recompensa: +Flow y colección.'}); }};
+    });
+    REWARD_TABLE.push(...EXTRA_REWARDS);
+
+    const Roulette = {
+        event:null, ticks:0, result:null, phase:'SPIN',
+        open(event) { this.event=event; this.ticks=0; this.result=null; this.phase='SPIN'; Game.state='ROULETTE'; Input.reset(); },
+        roll() {
+            const total=RARITIES.reduce((n,r)=>n+r.weight,0); let n=Math.random()*total, rarity=0;
+            for(let i=0;i<RARITIES.length;i++){ n-=RARITIES[i].weight; if(n<=0){rarity=i;break;} }
+            const options=REWARD_TABLE.filter(r=>r.rarity===rarity);
+            return { ...options[Math.floor(Math.random()*options.length)], rarity };
+        },
+        grant(r) {
+            if(r.type==='move') {
+                const mc=Game.party[Game.activeMc];
+                if(mc.moves.length<4) mc.moves.push(getClone(r.move));
+                else Game.inventory.items.push({name:r.name,detail:'Movimiento guardado; equipo completo'});
+            } else if(r.type==='skin') Game.playerSkin=r.skin;
+            else if(r.type==='pet') Game.pet=getClone(r.pet);
+            else if(r.type==='mc') {
+                const recruited=getClone(MCs[r.mc]); recruited.hp=recruited.maxHp;
+                if(!Game.party.some(m=>m.name===recruited.name) && !Game.pc.some(m=>m.name===recruited.name)) {
+                    if(Game.party.length<4) Game.party.push(recruited); else Game.pc.push(recruited);
+                }
+            } else if(r.apply) r.apply();
+        },
+        update() {
+            if(this.phase==='SPIN') {
+                this.ticks++;
+                if(this.ticks>105) { this.result=this.roll(); this.grant(this.result); this.phase='RESULT'; }
+            } else if(Input.actionPressed || Input.mapPressed) { Input.reset(); Game.state='OVERWORLD'; }
+        },
+        draw() {
+            Draw.rect(0,0,640,480,'rgba(0,0,0,0.72)');
+            Draw.box(55,35,530,410,'#101018','#f9a826');
+            Draw.text('¡MICRÓFONO ENCONTRADO!',320,78,'#f9a826',34,'center');
+            Draw.text('RULETA DE RECOMPENSAS',320,112,'#fff',25,'center');
+            const rarity=this.result ? RARITIES[this.result.rarity] : RARITIES[Math.floor((this.ticks/8)%5)];
+            Draw.box(105,145,430,135,'#181824',rarity.color);
+            if(this.phase==='SPIN') {
+                const names=['ÍTEM','MOVIMIENTO','SKIN','MASCOTA','NUEVO MC'];
+                Draw.text(names[Math.floor((this.ticks/5)%names.length)],320,205,rarity.color,42,'center');
+                Draw.text('Girando...',320,250,'#fff',22,'center');
+            } else {
+                Draw.text(this.result.name,320,195,rarity.color,27,'center');
+                if(this.result.type==='mc' && MCs[this.result.mc]) Draw.text(`${MCs[this.result.mc].flag||'🌎'} ${MCs[this.result.mc].country||'Internacional'}`,320,270,'#fff',20,'center');
+                if(this.result.type==='move') Draw.text(this.result.move.desc || 'Técnica especial disponible en combate',320,292,'#ddd',16,'center');
+                Draw.text(rarity.name,320,238,rarity.color,25,'center');
+                Draw.text('¡Recompensa añadida!',320,315,'#2ecc71',25,'center');
+                Draw.text('[ESPACIO] Continuar',320,385,'#fff',22,'center');
+            }
+            Draw.text('Rarezas: Común · Poco común · Raro · Épico · Legendario',320,425,'#aaa',17,'center');
+        }
+    };
+
+    const InventoryMenu = {
+        idx:0, open(){this.idx=0;Game.state='INVENTORY';Input.reset();},
+        update(){
+            const count=4;
+            if(Input.down){this.idx=(this.idx+1)%count;Input.reset();}
+            if(Input.up){this.idx=(this.idx+count-1)%count;Input.reset();}
+            if(Input.actionPressed){Input.reset();
+                if(this.idx===0 && Game.inventory.agua>0){Game.inventory.agua--;Game.party[Game.activeMc].hp=Math.min(Game.party[Game.activeMc].maxHp,Game.party[Game.activeMc].hp+50);}
+                else if(this.idx===1 && Game.inventory.energy>0){Game.inventory.energy--;Game.party[Game.activeMc].moves.forEach(m=>m.pp=m.max);}
+                else if(this.idx===2){Game.playerSkin=(Game.playerSkin+1)%SKINS.length;}
+                else if(this.idx===3){TeamMenu.open('VIEW');return;}
+            }
+            if(Input.mapPressed || Input.inventoryPressed){Input.reset();Game.state='OVERWORLD';}
+        },
+        draw(){
+            Draw.rect(0,0,640,480,'rgba(0,0,0,0.35)');
+            Draw.box(55,45,530,390,'#111','#00d2ff');
+            Draw.text('INVENTARIO / OUTFITS',320,85,'#00d2ff',34,'center');
+            const rows=[`Agua x${Game.inventory.agua} - curar 50 HP`,`Energía x${Game.inventory.energy} - recuperar PP`,`Outfit equipado: ${SKINS[Game.playerSkin].name}`,`Equipo MC (${Game.party.length}/4) - gestionar`];
+            rows.forEach((r,i)=>{Draw.text(r,115,155+i*55,this.idx===i?'#f9a826':'#fff',24);if(this.idx===i)Draw.text('▶',85,155+i*55,'#f9a826',24);});
+            Draw.text(`Mascota: ${Game.pet?Game.pet.name:'Ninguna'}`,320,375,'#2ecc71',22,'center');
+            Draw.text('[ESPACIO] Usar / Cambiar  [E] Cerrar',320,415,'#aaa',18,'center');
+        }
+    };
+
+    const Dialogue = {
+        queue: [], curr: "", charIdx: 0, cb: null,
+        start(texts, cb=null) { this.queue = [...texts]; this.cb = cb; this.curr = ""; this.charIdx = 0; Game.state = 'DIALOGUE'; Input.reset(); },
+        draw() {
+            if(this.queue.length > 0) {
+                let str = this.queue[0];
+                if (this.charIdx < str.length) { this.charIdx+=0.8; this.curr = str.substring(0, Math.floor(this.charIdx)); }
+                else if (Input.actionPressed) {
+                    Input.reset(); this.queue.shift(); this.charIdx = 0;
+                    if(this.queue.length === 0) { Game.state = 'OVERWORLD'; if(this.cb) this.cb(); }
+                }
+            }
+            Draw.box(20, 360, 600, 100);
+            Draw.text(this.curr, 40, 410, '#fff', 28);
+            if(this.queue.length > 0 && this.charIdx >= this.queue[0].length) Draw.text("▼", 590, 440, '#f9a826', 20);
+        }
+    };
+
+    const CypherMenu = {
+        idx: 0, col: 0, sel: null,
+        open() { Game.state = 'CYPHER'; this.idx=0; this.col=0; this.sel=null; Input.reset(); },
+        update() {
+            let list = this.col === 0 ? Game.party : Game.pc;
+            if(Input.down && this.idx < list.length-1) { this.idx++; Input.reset(); }
+            if(Input.up && this.idx > 0) { this.idx--; Input.reset(); }
+            if(Input.left && this.col === 1) { this.col = 0; this.idx = Math.min(this.idx, Game.party.length-1); Input.reset(); }
+            if(Input.right && this.col === 0 && Game.pc.length > 0) { this.col = 1; this.idx = Math.min(this.idx, Game.pc.length-1); Input.reset(); }
+            if(Input.mapPressed) { Input.reset(); Game.state = 'OVERWORLD'; }
+            if(Input.actionPressed) {
+                Input.reset();
+                if(list.length === 0) return;
+                
+                if(!this.sel) {
+                    this.sel = { col: this.col, idx: this.idx };
+                } else {
+                    if (this.sel.col === 0 && this.col === 1) {
+                        let temp = Game.party[this.sel.idx];
+                        Game.party[this.sel.idx] = Game.pc[this.idx];
+                        Game.pc[this.idx] = temp;
+                    } else if (this.sel.col === 1 && this.col === 0) {
+                        let temp = Game.pc[this.sel.idx];
+                        Game.pc[this.sel.idx] = Game.party[this.idx];
+                        Game.party[this.idx] = temp;
+                    }
+                    this.sel = null;
+                }
+            }
+        },
+        draw() {
+            Draw.box(20, 20, 600, 440);
+            Draw.text("- CYPHER (PC) -", 320, 60, '#00d2ff', 36, 'center');
+            Draw.text("Equipo (Max 4)", 150, 100, '#f9a826', 24, 'center');
+            Draw.text("Reserva", 450, 100, '#f9a826', 24, 'center');
+            
+            Game.party.forEach((mc, i) => {
+                let c = (this.col===0 && this.idx===i) ? '#f9a826' : '#fff';
+                if(this.sel && this.sel.col===0 && this.sel.idx===i) c = '#2ecc71';
+                Draw.text(`${mc.name} Lv${mc.lvl}`, 60, 150 + i*40, c, 20);
+            });
+            Game.pc.forEach((mc, i) => {
+                let c = (this.col===1 && this.idx===i) ? '#f9a826' : '#fff';
+                if(this.sel && this.sel.col===1 && this.sel.idx===i) c = '#2ecc71';
+                Draw.text(`${mc.name} Lv${mc.lvl}`, 360, 150 + i*40, c, 20);
+            });
+            Draw.text("[ESPACIO] Seleccionar/Cambiar | [M] Salir", 320, 430, '#aaa', 20, 'center');
+        }
+    };
+
+    const Cellphone = {
+        idx: 0,
+        opts: [
+            { name: "Historia (La Boca)", map: 0, x:2, y:2, route: "NORMAL" },
+            { name: "Torneo Red Bull", map: 7, x:2, y:2, route: "REDBULL" },
+            { name: "Torneo FMS Arg", map: 9, x:2, y:2, route: "FMS" },
+            { name: "El Quinto Escalón", map: 11, x:2, y:2, route: "QUINTO" },
+            ...BONUS_LEVELS.map((stage, i) => ({ name: `Nivel extra: ${stage.name}`, map: BONUS_MAP_INDEX[i], x:2, y:2, route: 'NORMAL' }))
+        ],
+        open() { Game.state = 'CELLPHONE'; this.idx=0; Input.reset(); },
+        update() {
+            if(Input.down && this.idx < this.opts.length-1) { this.idx++; Input.reset(); }
+            if(Input.up && this.idx > 0) { this.idx--; Input.reset(); }
+            if(Input.mapPressed || Input.cellPressed) { Input.reset(); Game.state = 'OVERWORLD'; }
+            if(Input.actionPressed) {
+                Input.reset();
+                let sel = this.opts[this.idx];
+                Game.missionIdx = 0;
+                Game.activeRoute = sel.route;
+                Game.updateMissionUI();
+                Game.loadMap(sel.map, sel.x, sel.y);
+                Game.state = 'OVERWORLD';
+            }
+        },
+        draw() {
+            Draw.box(150, 100, 340, 280, '#111', '#00d2ff');
+            Draw.text("📱 CELULAR - Viaje", 320, 140, '#00d2ff', 28, 'center');
+            const first = Math.max(0, Math.min(this.idx - 2, this.opts.length - 5));
+            this.opts.slice(first, first + 5).forEach((o, j) => {
+                const i = first + j;
+                let c = this.idx === i ? '#f9a826' : '#fff';
+                Draw.text(o.name, 190, 190 + j*35, c, 21);
+                if(this.idx === i) Draw.text("▶", 170, 190 + j*35, '#f9a826', 24);
+            });
+            Draw.text(`[${this.idx+1}/${this.opts.length}] [ESPACIO] Ir | [C] Cerrar`, 320, 350, '#aaa', 18, 'center');
+        }
+    };
+
+    const TeamMenu = {
+        idx: 0, mode: 'VIEW',
+        open(mode) { this.mode = mode; this.idx = 0; Game.state = 'TEAM'; Input.reset(); },
+        update() {
+            if(Input.down && this.idx < Game.party.length-1) { this.idx++; Input.reset(); }
+            if(Input.up && this.idx > 0) { this.idx--; Input.reset(); }
+            if(Input.mapPressed) { Input.reset(); Game.state = this.mode==='SWAP' ? 'BATTLE' : (this.mode==='LEARN' ? 'SHOP' : 'OVERWORLD'); }
+            if(Input.actionPressed) {
+                Input.reset();
+                let sel = Game.party[this.idx];
+                if(this.mode === 'SWAP') {
+                    if (sel.hp > 0 && this.idx !== Game.activeMc) {
+                        Game.activeMc = this.idx;
+                        Game.state = 'BATTLE';
+                        Battle.queueText(`¡Adelante ${sel.name}!`, () => Battle.enemyTurn());
+                    }
+                } else if (this.mode === 'LEARN') {
+                    if(sel.moves.length < 4) {
+                        Game.inventory.flow -= Game.tmToLearn.p;
+                        sel.moves.push(getClone(Game.tmToLearn.move));
+                        Game.state = 'SHOP';
+                        Dialogue.start([`¡${sel.name} aprendió ${Game.tmToLearn.move.name}!`], () => { Game.state = 'SHOP'; });
+                    } else {
+                        Game.state = 'SHOP';
+                        Dialogue.start([`${sel.name} ya tiene 4 movimientos. No puede aprender más.`], () => { Game.state = 'SHOP'; });
+                    }
+                }
+            }
+        },
+        draw() {
+            Draw.box(40, 40, 560, 400);
+            Draw.text("EQUIPO MC", 320, 80, '#f9a826', 36, 'center');
+            if(this.mode === 'LEARN') Draw.text("¿A quién enseñarle?", 320, 110, '#2ecc71', 24, 'center');
+            
+            Game.party.forEach((mc, i) => {
+                let y = 150 + i*60;
+                let c = mc.hp > 0 ? '#fff' : '#e74c3c';
+                Draw.text(mc.name, 100, y, c, 28);
+                Draw.text(`Lv${mc.lvl}`, 220, y, c, 24);
+                Draw.bar(300, y-15, 150, 10, mc.hp/mc.maxHp, '#2ecc71');
+                Draw.text(`${Math.floor(mc.hp)}/${mc.maxHp}`, 460, y, c, 20);
+                if(i === this.idx) Draw.text("▶", 70, y, '#f9a826', 24);
+                if(i === Game.activeMc) Draw.text("(Activo)", 520, y, '#4cc9f0', 18);
+            });
+            Draw.text("[ESPACIO] Seleccionar | [M] Volver", 320, 420, '#aaa', 20, 'center');
+        }
+    };
+
+    const Battle = {
+        sub: 'INTRO', ev: null, enemy: {}, txtQ: [], txtCb: null, charIdx: 0,
+        mIdx: 0, aIdx: 0, itIdx: 0, animT: 0,
+
+        start(ev) {
+            this.ev = ev; Game.state = 'BATTLE_TRANS'; Game.flashT = 0;
+            let scale = Math.max(1, Game.party[Game.activeMc]?.lvl || Game.party[0].lvl);
+            
+            if(ev.type === 'hater') {
+                let cols = ['#333', '#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6'];
+                let hc = cols[Math.floor(Math.random()*cols.length)];
+                this.enemy = { name:'HATER', hp: 30+scale*5, maxHp: 30+scale*5, atk: 12+scale*2, def: 10+scale, lvl: scale, cMain: hc, cStripe: '#111' };
+            } else if (ev.type === 'random_mc') {
+                this.enemy = getClone(MCs[ev.mc]);
+                const targetLevel = ev.lvl || scale;
+                this.enemy.lvl = Math.max(1, Math.min(scale + 2, Math.max(targetLevel, scale - 1)));
+                const levelFactor = this.enemy.lvl / Math.max(1, MCs[ev.mc].lvl || targetLevel);
+                this.enemy.maxHp = Math.max(45, Math.round(MCs[ev.mc].maxHp * levelFactor)); this.enemy.hp = this.enemy.maxHp;
+                this.enemy.atk = Math.max(8, Math.round(MCs[ev.mc].atk * levelFactor));
+                this.enemy.def = Math.max(8, Math.round(MCs[ev.mc].def * levelFactor));
+                this.enemy.cMain = this.enemy.color; this.enemy.cStripe = this.enemy.stripe;
+            } else if (ev.mc === 'futuro') {
+                this.enemy = { name:'TRUENO DEL FUTURO', hp: 250, maxHp: 250, atk: 45, def: 35, lvl: 20, cMain: '#00d2ff', cStripe: '#000' };
+            } else {
+                this.enemy = getClone(MCs[ev.mc]);
+                this.enemy.cMain = this.enemy.color; this.enemy.cStripe = this.enemy.stripe;
+            }
+            
+            if(Game.party[Game.activeMc].hp <= 0) {
+                let alive = Game.party.findIndex(m => m.hp > 0);
+                if(alive !== -1) Game.activeMc = alive;
+            }
+            
+            this.sub = 'INTRO';
+            this.queueText(`¡Enfrentas a ${this.enemy.name}!`, () => { this.sub = 'MENU'; });
+            this.mIdx = 0; Input.reset();
+        },
+
+        queueText(str, cb) { this.txtQ = [str]; this.charIdx = 0; this.sub = 'TEXT'; this.txtCb = cb; },
+
+        update() {
+            let act = Game.party[Game.activeMc];
+            
+            if (this.sub === 'MENU') {
+                if(Input.right && this.mIdx < 3) { this.mIdx++; Input.reset(); }
+                if(Input.left && this.mIdx > 0) { this.mIdx--; Input.reset(); }
+                if(Input.actionPressed) {
+                    Input.reset();
+                    if(this.mIdx===0) { this.sub = 'ATTACK'; this.aIdx = 0; }
+                    if(this.mIdx===1) { TeamMenu.open('SWAP'); }
+                    if(this.mIdx===2) { this.sub = 'ITEM'; this.itIdx = 0; }
+                    if(this.mIdx===3) {
+                        if(this.ev.type === 'boss') this.queueText("No puedes huir de un Jefe.", () => { this.sub = 'MENU'; });
+                        else this.queueText("Escapaste con éxito.", () => { Game.state = 'OVERWORLD'; });
+                    }
+                }
+            }
+            else if (this.sub === 'ATTACK') {
+                if(Input.down && this.aIdx < 2 && act.moves.length > 2) { this.aIdx+=2; Input.reset(); }
+                if(Input.up && this.aIdx > 1) { this.aIdx-=2; Input.reset(); }
+                if(Input.right && this.aIdx%2===0 && act.moves.length > this.aIdx+1) { this.aIdx++; Input.reset(); }
+                if(Input.left && this.aIdx%2===1) { this.aIdx--; Input.reset(); }
+                if(Input.mapPressed) { Input.reset(); this.sub = 'MENU'; }
+                if(Input.actionPressed) {
+                    Input.reset();
+                    let m = act.moves[this.aIdx];
+                    if(m.pp > 0) this.pAtk(m);
+                    else this.queueText("¡Sin PP!", () => { this.sub = 'ATTACK'; });
+                }
+            }
+            else if (this.sub === 'ITEM') {
+                if(Input.down && this.itIdx === 0) { this.itIdx = 1; Input.reset(); }
+                if(Input.up && this.itIdx === 1) { this.itIdx = 0; Input.reset(); }
+                if(Input.mapPressed) { Input.reset(); this.sub = 'MENU'; }
+                if(Input.actionPressed) {
+                    Input.reset();
+                    if(this.itIdx === 0 && Game.inventory.agua > 0) {
+                        Game.inventory.agua--; act.hp = Math.min(act.maxHp, act.hp + 50);
+                        this.queueText("Usaste Agua. HP Recuperado.", () => this.enemyTurn());
+                    } else if(this.itIdx === 1 && Game.inventory.energy > 0) {
+                        Game.inventory.energy--; act.moves.forEach(m => m.pp = Math.min(m.max, m.pp + 20));
+                        this.queueText("Usaste Energía. PP Recuperado.", () => this.enemyTurn());
+                    } else { this.queueText("No te quedan ítems.", () => { this.sub = 'ITEM'; }); }
+                }
+            }
+            else if (this.sub === 'TEXT') {
+                this.charIdx += 0.8;
+                if(Input.actionPressed && this.charIdx >= this.txtQ[0].length) { Input.reset(); if(this.txtCb) this.txtCb(); }
+            }
+            else if (this.sub === 'ANIM') {
+                this.animT--; if(this.animT <= 0 && this.txtCb) this.txtCb();
+            }
+        },
+
+        pAtk(m) {
+            m.pp--; let act = Game.party[Game.activeMc];
+            this.queueText(`¡${act.name} usa ${m.name}!`, () => {
+                this.sub = 'ANIM'; this.animT = 30;
+                this.txtCb = () => {
+                    if(m.t === 'dmg') {
+                        let dmg = Math.floor((((2*act.lvl/5+2) * m.pwr * act.atk / this.enemy.def)/50+2) * (Math.random()*0.2+0.8));
+                        this.enemy.hp -= dmg;
+                    } else if (m.t === 'heal') {
+                        act.hp = Math.min(act.maxHp, act.hp + m.pwr);
+                    } else if (m.t === 'buff') {
+                        act.atk += 2; act.def += 2;
+                    }
+                    if(this.enemy.hp <= 0) this.win(); else this.enemyTurn();
+                };
+            });
+        },
+
+        enemyTurn() {
+            let act = Game.party[Game.activeMc];
+            const announcedMove = (this.enemy.moves && this.enemy.moves.length) ? this.enemy.moves[Math.floor(Math.random()*this.enemy.moves.length)] : {name:'Barras'};
+            this.queueText(`¡${this.enemy.name} usa ${announcedMove.name}!`, () => {
+                this.sub = 'ANIM'; this.animT = 30;
+                this.txtCb = () => {
+                    const enemyMove = announcedMove;
+                    let dmg = enemyMove.t==='dmg' ? Math.floor((((2*this.enemy.lvl/5+2) * enemyMove.pwr * this.enemy.atk / act.def)/50+2) * (Math.random()*0.2+0.8)) : 0;
+                    if(enemyMove.t==='heal') this.enemy.hp = Math.min(this.enemy.maxHp, this.enemy.hp + enemyMove.pwr);
+                    if(enemyMove.t==='buff') { this.enemy.atk += 2; this.enemy.def += 2; }
+                    act.hp -= dmg;
+                    
+                    if(act.hp <= 0) {
+                        let alive = Game.party.some(m => m.hp > 0);
+                        if(alive) { this.queueText(`${act.name} cayó. ¡Cambia de MC!`, () => { TeamMenu.open('SWAP'); }); }
+                        else { Game.state = 'GAMEOVER'; document.getElementById('gameOverScreen').classList.remove('hidden'); }
+                    } else { this.sub = 'MENU'; }
+                };
+            });
+        },
+
+        win() {
+            if(this.ev.mc === 'futuro') {
+                Game.state = 'YEYE'; document.getElementById('yeye-ending').classList.remove('hidden'); return;
+            }
+            
+            let act = Game.party[Game.activeMc];
+            let flow = this.enemy.lvl * 20;
+            Game.inventory.flow += flow;
+            
+            // Subida de nivel obligatoria al ganar cualquier combate
+            act.lvl++; 
+            act.maxHp += 10; 
+            act.hp = act.maxHp; 
+            act.atk += 3; 
+            act.def += 2;
+            
+            let msgs = [
+                `¡Venciste a ${this.enemy.name}!`, 
+                `Ganaste $${flow}.`,
+                `¡${act.name} subió al Nivel ${act.lvl}!`
+            ];
+            
+            // Probabilidad del 50% de aprender movimiento secreto (distintos a los de tienda)
+            let secretMoves = [
+                {name:"Doble Tempo", pwr:70, pp:10, max:10, t:"dmg"},
+                {name:"Punchline", pwr:85, pp:5, max:5, t:"dmg"},
+                {name:"Flow Argento", pwr:0, pp:5, max:5, t:"buff"},
+                {name:"Métrica Pura", pwr:55, pp:15, max:15, t:"dmg"},
+                {name:"Acapella", pwr:90, pp:3, max:3, t:"dmg"},
+                {name:"Minutazo", pwr:100, pp:2, max:2, t:"dmg"}
+            ];
+
+            if (Math.random() < 0.5 && act.moves.length < 4) {
+                let available = secretMoves.filter(sm => !act.moves.find(m => m.name === sm.name));
+                if (available.length > 0) {
+                    let newMove = available[Math.floor(Math.random() * available.length)];
+                    act.moves.push(getClone(newMove));
+                    msgs.push(`¡Aprendió el mov secreto: ${newMove.name}!`);
+                }
+            }
+            
+            if(this.ev.type === 'boss') {
+                let recruited = getClone(MCs[this.ev.mc]);
+                msgs.push(`¡${this.enemy.name} se une a tu equipo!`);
+                Game.advanceMission(this.ev.nextMission);
+                
+                if(Game.party.length < 4) Game.party.push(recruited);
+                else { Game.pc.push(recruited); msgs.push(`Enviado al Cypher (PC).`); }
+                
+                for(let k in MapData[Game.mapIdx].events) {
+                    if (MapData[Game.mapIdx].events[k].mc === this.ev.mc) {
+                        let [bx, by] = k.split(',');
+                        let row = Game.currentGrid[by];
+                        Game.currentGrid[by] = row.substring(0, bx) + '1' + row.substring(parseInt(bx) + 1);
+                        MapData[Game.mapIdx].grid[by] = Game.currentGrid[by];
+                        delete MapData[Game.mapIdx].events[k];
+                    }
+                }
+            } else if (this.ev.type === 'random_mc' && Math.random() < 0.4) {
+                let recruited = getClone(MCs[this.ev.mc]);
+                recruited.lvl = this.enemy.lvl; recruited.maxHp = this.enemy.maxHp; recruited.hp = recruited.maxHp;
+                recruited.atk = this.enemy.atk; recruited.def = this.enemy.def;
+                msgs.push(`¡${this.enemy.name} respetó tu flow y se une!`);
+                if(Game.party.length < 4) Game.party.push(recruited);
+                else { Game.pc.push(recruited); msgs.push(`Enviado al Cypher (PC).`); }
+            }
+
+            let showNext = () => {
+                if(msgs.length === 0) { Game.state = 'OVERWORLD'; } 
+                else { this.queueText(msgs.shift(), showNext); }
+            };
+            showNext();
+        },
+
+        draw() {
+            Draw.rect(0,0,640,480, '#2d3436');
+            ctx.fillStyle = '#636e72'; ctx.beginPath(); ctx.ellipse(450, 180, 150, 40, 0, 0, Math.PI*2); ctx.fill(); 
+            ctx.fillStyle = '#636e72'; ctx.beginPath(); ctx.ellipse(180, 350, 200, 60, 0, 0, Math.PI*2); ctx.fill(); 
+
+            let eX=450, eY=160, pX=180, pY=320;
+            if(this.sub==='ANIM' && this.animT>15) { pX+=(Math.random()-0.5)*10; eX+=(Math.random()-0.5)*10; }
+
+            Draw.battleSprite(eX, eY, this.enemy.cMain, this.enemy.cStripe);
+            let act = Game.party[Game.activeMc];
+            Draw.battleSprite(pX, pY, act.color, act.stripe, true);
+
+            Draw.box(30, 30, 260, 70);
+            Draw.text(`${this.enemy.flag||''} ${this.enemy.name}`, 45, 55, '#fff', 22); Draw.text(`Lv${this.enemy.lvl}`, 230, 55, '#ccc', 20);
+            Draw.bar(45, 70, 230, 10, this.enemy.hp/this.enemy.maxHp, '#ff4757');
+
+            Draw.box(350, 240, 260, 90);
+            Draw.text(act.name, 365, 270, '#fff', 26); Draw.text(`Lv${act.lvl}`, 550, 270, '#ccc', 20);
+            Draw.bar(365, 285, 230, 10, act.hp/act.maxHp, '#2ecc71');
+            Draw.text(`${Math.floor(Math.max(0, act.hp))}/${act.maxHp}`, 460, 315, '#fff', 20);
+
+            Draw.box(0, 350, 640, 130);
+
+            if (['TEXT', 'ANIM', 'INTRO'].includes(this.sub)) {
+                let txt = this.txtQ[0]||"";
+                Draw.text(txt.substring(0, Math.floor(this.charIdx)), 30, 400, '#fff', 30);
+                if(this.sub==='TEXT' && this.charIdx>=txt.length) Draw.text("▼", 600, 450, '#f9a826', 20);
+            } 
+            else if (this.sub === 'MENU') {
+                Draw.text("¿Qué hará?", 30, 400, '#fff', 30);
+                let ops=["LUCHAR","EQUIPO","MOCHILA","HUIR"], ox=[320, 460, 320, 460], oy=[390, 390, 440, 440];
+                for(let i=0;i<4;i++) {
+                    Draw.text(ops[i], ox[i]+20, oy[i], '#fff', 26);
+                    if(this.mIdx===i) Draw.text("▶", ox[i], oy[i], '#f9a826', 24);
+                }
+            }
+            else if (this.sub === 'ATTACK') {
+                let ox=[30, 240, 30, 240], oy=[390, 390, 440, 440];
+                for(let i=0;i<act.moves.length;i++) {
+                    Draw.text(act.moves[i].name, ox[i]+20, oy[i], '#fff', 20);
+                    if(this.aIdx===i) Draw.text("▶", ox[i], oy[i], '#f9a826', 24);
+                }
+                Draw.box(450, 350, 190, 130);
+                let mv = act.moves[this.aIdx];
+                if(mv) { Draw.text(`PP ${mv.pp}/${mv.max}`, 465, 390, '#fff', 22); Draw.text(mv.desc || (mv.t==='heal'?'Recupera HP':mv.t==='buff'?'Aumenta ataque y defensa':`Daño: ${mv.pwr}`), 465, 420, '#f1c40f', 15); }
+                Draw.text(`[M] Volver`, 465, 450, '#aaa', 20);
+            }
+            else if (this.sub === 'ITEM') {
+                Draw.text(`Agua x${Game.inventory.agua}`, 60, 390, '#fff', 26);
+                Draw.text(`Energía x${Game.inventory.energy}`, 60, 440, '#fff', 26);
+                Draw.text("▶", 30, this.itIdx===0?390:440, '#f9a826', 24);
+                Draw.text(`[M] Volver`, 450, 450, '#aaa', 20);
+            }
+        }
+    };
+
+    Game.loop();
+</script>
+</body>
+</html>
